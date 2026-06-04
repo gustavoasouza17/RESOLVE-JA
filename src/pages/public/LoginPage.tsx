@@ -1,14 +1,21 @@
 import { Link } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
-
-const stats = [
-  { value: '500+', label: 'Profissionais' },
-  { value: '5.0', label: 'Avaliação média' },
-  { value: '10k+', label: 'Atendimentos' },
-];
+import mockProfessionals from '../../constants/mockProfessionals';
+import mockProposals from '../../constants/mockProposals';
 
 const LoginPage = () => {
+  const averageRating = (
+    mockProfessionals.reduce((sum, professional) => sum + professional.avaliacaoMedia, 0) /
+    mockProfessionals.length
+  ).toFixed(1);
+
+  const stats = [
+    { value: `${mockProfessionals.length}+`, label: 'Profissionais' },
+    { value: averageRating, label: 'Avaliação média' },
+    { value: `${mockProposals.length * 3}+`, label: 'Atendimentos' },
+  ];
+
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-5 py-10 sm:px-6 lg:px-8">

@@ -1,16 +1,30 @@
 import Button from '../../components/atoms/Button';
 import Badge from '../../components/atoms/Badge';
+import categories from '../../constants/categories';
+import mockProfessionals from '../../constants/mockProfessionals';
+import mockProposals from '../../constants/mockProposals';
 
-const users = [
-  { id: 'u1', name: 'Mariana Costa', profile: 'Cliente', status: 'Ativo' },
-  { id: 'u2', name: 'Carlos Mendes', profile: 'Prestador', status: 'Ativo' },
-  { id: 'u3', name: 'Felipe Santos', profile: 'Cliente', status: 'Suspenso' },
+const summaryCards = [
+  { label: 'Usuários totais', value: '1.248' },
+  { label: 'Profissionais ativos', value: '489' },
+  { label: 'Serviços realizados', value: '12.530' },
+  { label: 'Receita estimada', value: 'R$ 1.280.000' },
 ];
 
-const reports = [
-  { id: 'r1', reporter: 'Mariana', reported: 'Carlos', reason: 'Perfil falso', date: '01 jun 2026' },
-  { id: 'r2', reporter: 'Ana', reported: 'Felipe', reason: 'Serviço não entregue', date: '28 mai 2026' },
-];
+const users = mockProfessionals.slice(0, 3).map((professional) => ({
+  id: professional.uid,
+  name: professional.nome,
+  profile: 'Prestador',
+  status: professional.status === 'ativo' ? 'Ativo' : 'Suspenso',
+}));
+
+const reports = mockProposals.slice(0, 2).map((proposal, index) => ({
+  id: `r${index + 1}`,
+  reporter: proposal.clienteId,
+  reported: proposal.prestadorId,
+  reason: index === 0 ? 'Serviço não entregue' : 'Perfil falso',
+  date: index === 0 ? '01 jun 2026' : '28 mai 2026',
+}));
 
 const AdminDashboardPage = () => {
   return (
@@ -29,22 +43,12 @@ const AdminDashboardPage = () => {
         <div className="grid gap-6 xl:grid-cols-[1.4fr_0.8fr]">
           <section className="space-y-6">
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <div className="rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Usuários totais</p>
-                <p className="mt-4 text-3xl font-semibold text-[var(--color-navy)]">1.248</p>
-              </div>
-              <div className="rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Profissionais ativos</p>
-                <p className="mt-4 text-3xl font-semibold text-[var(--color-navy)]">489</p>
-              </div>
-              <div className="rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Serviços realizados</p>
-                <p className="mt-4 text-3xl font-semibold text-[var(--color-navy)]">12.530</p>
-              </div>
-              <div className="rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
-                <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Receita estimada</p>
-                <p className="mt-4 text-3xl font-semibold text-[var(--color-navy)]">R$ 1.280.000</p>
-              </div>
+              {summaryCards.map((card) => (
+                <div key={card.label} className="rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-slate-200">
+                  <p className="text-sm uppercase tracking-[0.24em] text-slate-500">{card.label}</p>
+                  <p className="mt-4 text-3xl font-semibold text-[var(--color-navy)]">{card.value}</p>
+                </div>
+              ))}
             </div>
 
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
@@ -81,7 +85,7 @@ const AdminDashboardPage = () => {
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
               <div className="flex items-center justify-between gap-4">
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Denúncias pendentes</p>
-                <Badge variant="primary">{reports.length}</Badge>
+                <Badge variant="default" label={`${reports.length}`} />
               </div>
               <div className="mt-6 space-y-4">
                 {reports.map((report) => (
@@ -108,10 +112,10 @@ const AdminDashboardPage = () => {
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Gerenciamento de categorias</p>
               <div className="mt-6 space-y-3">
-                {['Pedreiro', 'Encanador', 'Eletricista'].map((category) => (
-                  <div key={category} className="flex items-center justify-between rounded-3xl bg-[var(--color-bg-light)] px-4 py-3">
-                    <span className="text-sm font-medium text-[var(--color-navy)]">{category}</span>
-                    <Button variant="secondary" size="sm">Desativar</Button>
+                {categories.slice(0, 3).map((category) => (
+                  <div key={category.id} className="flex items-center justify-between rounded-3xl bg-[var(--color-bg-light)] px-4 py-3">
+                    <span className="text-sm font-medium text-[var(--color-navy)]">{category.nome}</span>
+                    <Button variant="secondary">Desativar</Button>
                   </div>
                 ))}
               </div>

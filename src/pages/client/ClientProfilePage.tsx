@@ -1,19 +1,31 @@
 import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
 import StarRating from '../../components/atoms/StarRating';
-
-const history = [
-  { id: 'order-001', service: 'Reforma de banheiro', status: 'Concluído', date: '25 abr 2026' },
-  { id: 'order-002', service: 'Instalação elétrica', status: 'Em andamento', date: '17 mai 2026' },
-  { id: 'order-003', service: 'Pintura de cozinha', status: 'Cancelado', date: '03 mai 2026' },
-];
-
-const reviews = [
-  { id: 'rev-001', name: 'Carlos Mendes', rating: 5, text: 'Cliente claro e organizado. Pagou rápido após a conclusão.' },
-  { id: 'rev-002', name: 'Ana Souza', rating: 4, text: 'Ótima comunicação, deixou tudo pronto para eu trabalhar.' },
-];
+import mockProposals from '../../constants/mockProposals';
+import mockReviews from '../../constants/mockReviews';
 
 const ClientProfilePage = () => {
+  const historyItems = mockProposals
+    .filter((proposal) => proposal.clienteId === 'client001')
+    .slice(0, 3)
+    .map((proposal) => ({
+      id: proposal.id,
+      service: proposal.descricao,
+      status: proposal.status === 'pendente' ? 'Em andamento' : proposal.status === 'aceita' ? 'Concluído' : 'Cancelado',
+      date: new Date(proposal.dataDesejada).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+      }),
+    }));
+
+  const reviewItems = mockReviews.slice(0, 2).map((review) => ({
+    id: review.id,
+    name: `Cliente ${review.autorId.replace('client', '')}`,
+    rating: review.estrelas,
+    text: review.comentario,
+  }));
+
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
       <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 lg:px-8">
@@ -31,7 +43,7 @@ const ClientProfilePage = () => {
               <div className="mt-8 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                   <p className="text-sm text-slate-500">Serviços concluídos</p>
-                  <p className="mt-2 text-2xl font-semibold text-[var(--color-navy)]">8</p>
+                  <p className="mt-2 text-2xl font-semibold text-[var(--color-navy)]">{historyItems.length}</p>
                 </div>
                 <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                   <p className="text-sm text-slate-500">Avaliação média</p>
@@ -42,7 +54,7 @@ const ClientProfilePage = () => {
                 </div>
                 <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                   <p className="text-sm text-slate-500">Último serviço</p>
-                  <p className="mt-2 text-base font-semibold text-[var(--color-navy)]">Pintura de cozinha</p>
+                  <p className="mt-2 text-base font-semibold text-[var(--color-navy)]">{historyItems[0]?.service ?? 'Nenhum serviço'}</p>
                 </div>
               </div>
             </div>
@@ -57,7 +69,7 @@ const ClientProfilePage = () => {
               </div>
 
               <div className="mt-6 space-y-4">
-                {history.map((item) => (
+                {historyItems.map((item) => (
                   <div key={item.id} className="rounded-3xl border border-slate-200 bg-[var(--color-bg-light)] p-5">
                     <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
                       <div>
@@ -75,11 +87,11 @@ const ClientProfilePage = () => {
           <aside className="space-y-6">
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Avaliações recebidas</p>
-                <span className="text-sm text-slate-500">2 recentes</span>
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Avaliações recentes</p>
+                <span className="text-sm text-slate-500">{reviewItems.length} recentes</span>
               </div>
               <div className="mt-6 space-y-4">
-                {reviews.map((review) => (
+                {reviewItems.map((review) => (
                   <div key={review.id} className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                     <div className="flex items-center justify-between gap-4">
                       <p className="font-semibold text-[var(--color-navy)]">{review.name}</p>

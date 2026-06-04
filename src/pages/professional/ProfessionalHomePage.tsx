@@ -2,24 +2,23 @@ import { Link } from 'react-router-dom';
 import Avatar from '../../components/atoms/Avatar';
 import Badge from '../../components/atoms/Badge';
 import Button from '../../components/atoms/Button';
+import mockProposals from '../../constants/mockProposals';
 
-const proposals = [
-  {
-    id: 'proposal-001',
-    client: 'Mariana Costa',
-    service: 'Reforma de banheiro',
-    value: 'R$ 1.200',
-    status: 'Nova',
-  },
-  {
-    id: 'proposal-002',
-    client: 'Felipe Santos',
-    service: 'Conserto elétrico',
-    value: 'R$ 450',
-    status: 'Pendente',
-  },
-];
+type ProposalBadgeVariant = 'success' | 'default';
 
+const proposalCards = mockProposals.slice(0, 2).map((proposal) => {
+  const statusLabel = proposal.status === 'pendente' ? 'Nova' : proposal.status === 'aceita' ? 'Aceita' : 'Recusada';
+  const badgeVariant: ProposalBadgeVariant = proposal.status === 'pendente' ? 'success' : 'default';
+
+  return {
+    id: proposal.id,
+    client: `Cliente ${proposal.clienteId.replace('client', '')}`,
+    service: proposal.descricao,
+    value: `R$ ${proposal.orcamentoCliente}`,
+    statusLabel,
+    badgeVariant,
+  };
+});
 const ProfessionalHomePage = () => {
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
@@ -43,11 +42,11 @@ const ProfessionalHomePage = () => {
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Novas oportunidades</p>
                   <p className="mt-2 text-sm text-slate-600">Propostas recentes enviadas por clientes na sua área.</p>
                 </div>
-                <Badge variant="primary">2 não lidas</Badge>
+                <Badge variant="default" label={`${proposalCards.length} não lidas`} />
               </div>
 
               <div className="mt-6 space-y-4">
-                {proposals.map((proposal) => (
+                {proposalCards.map((proposal) => (
                   <div key={proposal.id} className="rounded-3xl border border-slate-200 p-5">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                       <div>
@@ -65,7 +64,7 @@ const ProfessionalHomePage = () => {
                       </div>
                     </div>
                     <div className="mt-5 flex flex-wrap items-center gap-3">
-                      <Badge variant={proposal.status === 'Nova' ? 'success' : 'default'} label={proposal.status} />
+                      <Badge variant={proposal.badgeVariant} label={proposal.statusLabel} />
                       <Link to={`/prestador/proposta/${proposal.id}`} className="text-sm font-semibold text-[var(--color-primary)] hover:underline">
                         Ver detalhes →
                       </Link>

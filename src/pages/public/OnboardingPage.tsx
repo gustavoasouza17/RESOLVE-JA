@@ -1,24 +1,44 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
+import categories from '../../constants/categories';
+import mockProfessionals from '../../constants/mockProfessionals';
+import mockProposals from '../../constants/mockProposals';
 
-const categories = [
-  { title: 'Pedreiro', subtitle: 'Reformas e construções', icon: '🧱' },
-  { title: 'Encanador', subtitle: 'Instalações e consertos', icon: '🚿' },
-  { title: 'Eletricista', subtitle: 'Instalação e manutenção', icon: '💡' },
-  { title: 'Jardineiro', subtitle: 'Paisagismo e podas', icon: '🌿' },
-  { title: 'Marceneiro', subtitle: 'Móveis sob medida', icon: '🪚' },
-  { title: 'Pintor', subtitle: 'Acabamentos e repintura', icon: '🎨' },
-];
+const iconMap: Record<string, string> = {
+  hammer: '🧱',
+  droplet: '🚿',
+  bolt: '💡',
+  wood: '🪚',
+  palette: '🎨',
+  leaf: '🌿',
+  wrench: '🔧',
+  snowflake: '❄️',
+};
 
-const stats = [
-  { value: '500+', label: 'Profissionais' },
-  { value: '5.0', label: 'Avaliação média' },
-  { value: '10k+', label: 'Atendimentos' },
-];
+const categoryCards = categories
+  .filter((category) => category.ativa)
+  .slice(0, 6)
+  .map((category) => ({
+    title: category.nome,
+    subtitle: `Serviços de ${category.nome.toLowerCase()}`,
+    icon: iconMap[category.icone] ?? '🔧',
+  }));
 
 const OnboardingPage = () => {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const averageRating = (
+    mockProfessionals.reduce((sum, professional) => sum + professional.avaliacaoMedia, 0) /
+    mockProfessionals.length
+  ).toFixed(1);
+
+  const stats = [
+    { value: `${mockProfessionals.length}+`, label: 'Profissionais' },
+    { value: averageRating, label: 'Avaliação média' },
+    { value: `${mockProposals.length * 4}k+`, label: 'Atendimentos' },
+  ];
+
+  const professionalsPreview = mockProfessionals.slice(0, 2);
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
@@ -63,9 +83,11 @@ const OnboardingPage = () => {
                   Começar agora
                 </Button>
               </Link>
-              <Button variant="secondary" className="w-full sm:w-auto">
-                Ver categorias
-              </Button>
+              <Link to="/buscar">
+                <Button variant="secondary" className="w-full sm:w-auto">
+                  Ver categorias
+                </Button>
+              </Link>
             </div>
           </div>
 
@@ -107,14 +129,12 @@ const OnboardingPage = () => {
                   <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
                     <p className="text-sm font-semibold text-slate-500">Profissionais próximos</p>
                     <div className="mt-4 space-y-3">
-                      <div className="rounded-3xl bg-white p-4 shadow-sm">
-                        <p className="font-semibold text-slate-900">Carla - Pedreira</p>
-                        <p className="text-sm text-slate-500">2,3 km · 4,9 ★</p>
-                      </div>
-                      <div className="rounded-3xl bg-white p-4 shadow-sm">
-                        <p className="font-semibold text-slate-900">Thiago - Encanador</p>
-                        <p className="text-sm text-slate-500">1,4 km · 4,8 ★</p>
-                      </div>
+                      {professionalsPreview.map((professional) => (
+                        <div key={professional.uid} className="rounded-3xl bg-white p-4 shadow-sm">
+                          <p className="font-semibold text-slate-900">{professional.nome} · {professional.categorias[0]}</p>
+                          <p className="text-sm text-slate-500">{professional.distanciaKm.toFixed(1)} km · {professional.avaliacaoMedia} ★</p>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
@@ -139,7 +159,7 @@ const OnboardingPage = () => {
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
-              {categories.map((category) => (
+              {categoryCards.map((category) => (
                 <article key={category.title} className="group rounded-[28px] border border-slate-200 bg-slate-50 p-5 transition hover:border-[var(--color-primary)] hover:bg-white">
                   <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-3xl bg-[var(--color-primary)]/10 text-2xl">
                     {category.icon}
