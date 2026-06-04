@@ -1,0 +1,29 @@
+:root {
+  /* Core branding */
+  --color-primary: #FFD900;
+  --color-navy: #1A2B4C;
+  --color-white: #FFFFFF;
+  --color-bg-light: #F0F0F8;
+  --color-text-body: #333333;
+  --color-text-muted: #888888;
+  --color-star: #FFB800;
+
+  /* Typography */
+  --font-heading: 'Montserrat', sans-serif;
+  --font-body: 'Roboto', sans-serif;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+
+  /* Shadows */
+  --shadow-soft: 0 12px 28px rgba(26, 43, 76, 0.12);
+}
