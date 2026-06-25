@@ -1,12 +1,16 @@
-import { Link } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
+import mockProfessionals from '../../constants/mockProfessionals';
 
 const RequestPage = () => {
+  const { profissionalId } = useParams();
+  const professional = mockProfessionals.find((p) => p.uid === profissionalId) ?? mockProfessionals[0];
+
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
       <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 lg:px-8">
-        <div className="grid gap-10 lg:grid-cols-[1.4fr_0.8fr]">
+        <div className="grid gap-10npm lg:grid-cols-[1.4fr_0.8fr]">
           <section className="space-y-6 rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Enviar proposta</p>
@@ -49,16 +53,16 @@ const RequestPage = () => {
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Dados do prestador</p>
               <div className="mt-5 space-y-3">
-                <p className="text-lg font-semibold text-[var(--color-navy)]">Carlos Mendes</p>
-                <p className="text-sm text-slate-600">Pedreiro profissional com 12 anos de experiência em reformas residenciais.</p>
+                <p className="text-lg font-semibold text-[var(--color-navy)]">{professional.nome}</p>
+                <p className="text-sm text-slate-600">{professional.bio}</p>
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Avaliação</p>
-                    <p className="mt-2 text-lg font-semibold text-[var(--color-navy)]">4.9 ★</p>
+                    <p className="mt-2 text-lg font-semibold text-[var(--color-navy)]">{professional.avaliacaoMedia} ★</p>
                   </div>
                   <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
                     <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Serviços</p>
-                    <p className="mt-2 text-lg font-semibold text-[var(--color-navy)]">203</p>
+                    <p className="mt-2 text-lg font-semibold text-[var(--color-navy)]">{professional.totalServicos}</p>
                   </div>
                 </div>
               </div>
@@ -69,7 +73,10 @@ const RequestPage = () => {
               <p className="mt-3 text-sm leading-6 text-slate-700">Descreva o máximo possível. Detalhes sobre local, prazo e materiais ajudam o prestador a entregar um orçamento mais preciso.</p>
             </div>
 
-            <Link to="/profissional/pro-001" className="block rounded-3xl bg-[var(--color-primary)]/10 px-5 py-4 text-sm font-semibold text-[var(--color-navy)] hover:bg-[var(--color-primary)]/15">
+            <Link
+              to={`/profissional/${professional.uid}`}
+              className="block rounded-3xl bg-[var(--color-primary)]/10 px-5 py-4 text-sm font-semibold text-[var(--color-navy)] hover:bg-[var(--color-primary)]/15"
+            >
               Voltar ao perfil do profissional
             </Link>
           </aside>
