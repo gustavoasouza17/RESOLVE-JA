@@ -1,8 +1,30 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import CategoryCard from '../../components/molecules/CategoryCard';
+import MapView from '../../components/organisms/MapView';
 import categories from '../../constants/categories';
 import mockProfessionals from '../../constants/mockProfessionals';
+
+// São Paulo approximate center (fallback)
+const SP_CENTER = { lat: -23.5505, lng: -46.6333 };
+
+/**
+ * Generate approximate coordinates around São Paulo based on distanceKm.
+ * Each professional gets a random-ish offset proportional to their distance.
+ */
+function generateCoord(
+  baseLat: number,
+  baseLng: number,
+  distanceKm: number,
+  seed: number
+): { lat: number; lng: number } {
+  // 1 degree ≈ 111km at equator, ~111*cos(lat) ≈ 102km for longitude at SP latitude
+  const angle = (seed * 137.5) % 360; // golden angle for even-ish distribution
+  const rad = (angle * Math.PI) / 180;
+  const latOffset = (distanceKm / 111) * Math.cos(rad);
+  const lngOffset = (distanceKm / 102) * Math.sin(rad);
+  return { lat: baseLat + latOffset, lng: baseLng + lngOffset };
+}
 
 const iconMap: Record<string, string> = {
   hammer: '🧱',
@@ -26,6 +48,7 @@ const activeCategories = categories
   }));
 
 const HomePage = () => {
+  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [search, setSearch] = useState('');
 
@@ -36,7 +59,23 @@ const HomePage = () => {
     }
   };
 
-  const nearby = mockProfessionals.slice(0, 3);
+  const nearby = mockProfessionals.slice(0, 6);
+
+  const mapProfessionals = mockProfessionals.slice(0, 8).map((p, i) => {
+    const coord = generateCoord(SP_CENTER.lat, SP_CENTER.lng, p.distanciaKm, i + 1);
+    return {
+      uid: p.uid,
+      nome: p.nome,
+      categoria: p.categorias[0],
+      lat: coord.lat,
+      lng: coord.lng,
+      distance: p.distanciaKm,
+    };
+  });
+
+  const handleSelectProfessional = (uid: string) => {
+    navigate(`/profissional/${uid}`);
+  };
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
@@ -91,7 +130,7 @@ const HomePage = () => {
                 Ver todas
               </Link>
             </div>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-3">
               {activeCategories.map((cat) => (
                 <CategoryCard
                   key={cat.id}
@@ -112,44 +151,46 @@ const HomePage = () => {
             </div>
 
             {viewMode === 'list' ? (
-              <div className="space-y-4">
+              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
                 {nearby.map((professional) => (
                   <Link
                     key={professional.uid}
                     to={`/profissional/${professional.uid}`}
-                    className="block rounded-[28px] bg-white p-5 shadow-sm ring-1 ring-slate-200 transition hover:ring-[var(--color-primary)]/30"
+                    className="block rounded-[28px] bg-white shadow-sm ring-1 ring-slate-200 transition hover:ring-[var(--color-primary)]/30"
                   >
-                    <div className="flex items-center gap-4">
+                    {/* Vertical card: image on top, info below */}
+                    <div className="aspect-[2/3] w-full overflow-hidden rounded-t-[28px] bg-slate-200">
                       <img
                         src={professional.fotoUrl}
                         alt={professional.nome}
-                        className="h-16 w-16 flex-shrink-0 rounded-2xl object-cover"
+                        className="h-full w-full object-cover object-center"
                       />
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-[var(--color-navy)]">{professional.nome}</p>
-                        <p className="text-sm text-slate-500">{professional.categorias[0]} · {professional.distanciaKm.toFixed(1)} km</p>
-                        <p className="text-sm text-slate-600">★ {professional.avaliacaoMedia.toFixed(1)} · {professional.totalServicos} serviços</p>
+                    </div>
+                    <div className="space-y-2 p-5">
+                      <p className="text-lg font-bold text-[var(--color-navy)]">{professional.nome}</p>
+                      <p className="text-sm text-slate-500">
+                        {professional.categorias[0]} · {professional.distanciaKm.toFixed(1)} km
+                      </p>
+                      <div className="flex items-center gap-2 text-sm text-slate-600">
+                        <span className="text-[var(--color-star)]">★</span>
+                        <span>{professional.avaliacaoMedia.toFixed(1)}</span>
+                        <span className="text-slate-400">·</span>
+                        <span>{professional.totalServicos} serviços</span>
                       </div>
-                      <span className="text-[var(--color-primary)]">→</span>
+                      <div className="pt-1">
+                        <span className="inline-block rounded-2xl bg-[var(--color-primary)]/15 px-4 py-2 text-sm font-semibold text-[var(--color-navy)] transition hover:bg-[var(--color-primary)]/30">
+                          Ver perfil →
+                        </span>
+                      </div>
                     </div>
                   </Link>
                 ))}
               </div>
             ) : (
-              <div className="overflow-hidden rounded-[32px] bg-white shadow-sm ring-1 ring-slate-200">
-                <div className="aspect-[4/3] w-full bg-gradient-to-br from-slate-200 via-slate-100 to-slate-50" />
-                <div className="p-5">
-                  <p className="text-sm text-slate-600">
-                    Mapa interativo — veja os profissionais mais próximos da sua localização.
-                  </p>
-                  <button
-                    type="button"
-                    className="mt-4 rounded-2xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-                  >
-                    📍 Usar minha localização
-                  </button>
-                </div>
-              </div>
+              <MapView
+                professionals={mapProfessionals}
+                onSelectProfessional={handleSelectProfessional}
+              />
             )}
           </div>
         </div>
