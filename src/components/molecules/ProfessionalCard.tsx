@@ -34,7 +34,7 @@ const ProfessionalCard = ({
 
   return (
     <article className={`overflow-hidden rounded-[32px] bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-200 ${className}`}>
-      <div className="relative h-64 overflow-hidden bg-slate-200">
+      <div className="relative aspect-[3/4] overflow-hidden bg-slate-200">
         <img src={image} alt={`${name} - ${category}`} className="h-full w-full object-cover object-center" />
 
         <div className="absolute left-4 top-4 rounded-3xl bg-slate-950/80 px-4 py-2 text-sm font-semibold text-white">

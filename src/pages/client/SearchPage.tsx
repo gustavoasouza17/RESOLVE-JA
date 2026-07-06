@@ -235,7 +235,7 @@ const SearchPage = () => {
                   key={professional.uid}
                   className="overflow-hidden rounded-[32px] bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-200"
                 >
-                  <div className="relative h-64 overflow-hidden bg-slate-200">
+                  <div className="relative aspect-[3/4] overflow-hidden bg-slate-200">
                     <img
                       src={professional.fotoUrl}
                       alt={`${professional.nome} — ${professional.categorias[0]}`}
