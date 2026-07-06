@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom';
 import MapView from '../../components/organisms/MapView';
+import Button from '../../components/atoms/Button';
 import StarRating from '../../components/atoms/StarRating';
 import mockProfessionals from '../../constants/mockProfessionals';
 import categories from '../../constants/categories';
@@ -21,14 +22,36 @@ function generateCoord(
   return { lat: baseLat + latOffset, lng: baseLng + lngOffset };
 }
 
+const normalizeCategoryValue = (value: string) =>
+  value
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '');
+
+const resolveCategoryFromParam = (param?: string) => {
+  if (!param) return '';
+
+  const normalizedParam = normalizeCategoryValue(param);
+  const match = categories.find(
+    (category) => normalizeCategoryValue(category.nome) === normalizedParam
+  );
+
+  return match?.nome ?? '';
+};
+
 const SearchPage = () => {
   const { categoria } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [search, setSearch] = useState(searchParams.get('q') || '');
-  const [selectedCategory, setSelectedCategory] = useState(categoria || '');
+  const [selectedCategory, setSelectedCategory] = useState('');
   const [sortBy, setSortBy] = useState<'distance' | 'rating'>('distance');
+
+  useEffect(() => {
+    setSelectedCategory(resolveCategoryFromParam(categoria));
+  }, [categoria]);
 
   const lowerCategory = selectedCategory.toLowerCase();
   const query = search.toLowerCase();
@@ -70,15 +93,26 @@ const SearchPage = () => {
   };
 
   const handleCategoryClick = (cat: string) => {
-    if (selectedCategory.toLowerCase() === cat.toLowerCase()) {
-      setSelectedCategory('');
+    const nextCategory =
+      selectedCategory.toLowerCase() === cat.toLowerCase() ? '' : cat;
+
+    setSelectedCategory(nextCategory);
+
+    if (nextCategory) {
+      navigate(`/buscar/${encodeURIComponent(nextCategory)}`);
     } else {
-      setSelectedCategory(cat);
+      navigate('/buscar');
     }
   };
 
   const handleSelectProfessional = (uid: string) => {
-    navigate(`/profissional/${uid}`);
+    navigate(`/profissional/${uid}`, {
+      state: {
+        fromSearch: true,
+        category: selectedCategory,
+        query: search.trim(),
+      },
+    });
   };
 
   const mapProfessionals = filtered.slice(0, 8).map((p, i) => {
@@ -102,21 +136,29 @@ const SearchPage = () => {
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 lg:px-8">
         <div className="space-y-6">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex-1">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
+                {selectedCategory || 'Buscar'}
+              </p>
+              <h1 className="mt-2 text-3xl font-bold tracking-tight">
+                {selectedCategory
+                  ? `Profissionais de ${selectedCategory}`
+                  : 'Encontre o profissional ideal'}
+              </h1>
+              <p className="mt-2 text-sm text-slate-600">
+                {filtered.length === 0
+                  ? 'Nenhum profissional encontrado para essa busca.'
+                  : `${filtered.length} ${filtered.length === 1 ? 'profissional encontrado' : 'profissionais encontrados'} perto de você.`}
+              </p>
+            </div>
+            <Button type="button" variant="secondary" className="inline-flex items-center gap-2" onClick={() => navigate('/')}>
+              ← Tela principal
+            </Button>
+          </div>
+
           {/* Header */}
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
-              {selectedCategory || 'Buscar'}
-            </p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">
-              {selectedCategory
-                ? `Profissionais de ${selectedCategory}`
-                : 'Encontre o profissional ideal'}
-            </h1>
-            <p className="mt-2 text-sm text-slate-600">
-              {filtered.length === 0
-                ? 'Nenhum profissional encontrado para essa busca.'
-                : `${filtered.length} ${filtered.length === 1 ? 'profissional encontrado' : 'profissionais encontrados'} perto de você.`}
-            </p>
           </div>
 
           {/* Search bar */}
@@ -235,59 +277,66 @@ const SearchPage = () => {
                   key={professional.uid}
                   className="overflow-hidden rounded-[32px] bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-200"
                 >
-                  <div className="relative aspect-[3/4] overflow-hidden bg-slate-200">
-                    <img
-                      src={professional.fotoUrl}
-                      alt={`${professional.nome} — ${professional.categorias[0]}`}
-                      className="h-full w-full object-cover object-center"
-                    />
-                    <div className="absolute left-4 top-4 rounded-3xl bg-slate-900/80 px-4 py-2 text-sm font-semibold text-white">
-                      ★ {professional.avaliacaoMedia.toFixed(1)}
-                    </div>
-                  </div>
-                  <div className="p-6">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="space-y-2">
-                        <h2 className="text-2xl font-bold text-[var(--color-navy)]">
-                          {professional.nome}
-                        </h2>
-                        <p className="text-sm text-slate-500">
-                          {professional.categorias[0]}
-                        </p>
-                      </div>
-                      <Link
-                        to={`/profissional/${professional.uid}`}
-                        className="inline-flex items-center justify-center rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary)]/10 px-5 py-3 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/20"
-                      >
-                        Ver perfil completo →
-                      </Link>
-                    </div>
-
-                    <div className="mt-5 grid gap-4 sm:grid-cols-3">
-                      <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
-                        <p className="text-sm text-slate-500">Avaliações</p>
-                        <div className="mt-2 flex items-center gap-2">
-                          <StarRating
-                            value={professional.avaliacaoMedia}
-                            readOnly
-                            size="sm"
+                  <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6">
+                    <div className="w-full shrink-0 sm:w-44 md:w-48 lg:w-52">
+                      <div className="relative overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100 p-2 shadow-sm">
+                        <div className="aspect-[3/4] overflow-hidden rounded-[18px] bg-white">
+                          <img
+                            src={professional.fotoUrl}
+                            alt={`${professional.nome} — ${professional.categorias[0]}`}
+                            className="h-full w-full object-contain object-center"
                           />
-                          <span className="text-sm text-slate-600">
-                            ({professional.totalAvaliacoes} avaliações)
-                          </span>
+                        </div>
+                        <div className="absolute left-3 top-3 rounded-2xl bg-slate-900/80 px-3 py-2 text-sm font-semibold text-white">
+                          ★ {professional.avaliacaoMedia.toFixed(1)}
                         </div>
                       </div>
-                      <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
-                        <p className="text-sm text-slate-500">Serviços</p>
-                        <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">
-                          {professional.totalServicos}
-                        </p>
+                    </div>
+
+                    <div className="flex-1">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="space-y-2">
+                          <h2 className="text-2xl font-bold text-[var(--color-navy)]">
+                            {professional.nome}
+                          </h2>
+                          <p className="text-sm text-slate-500">
+                            {professional.categorias[0]}
+                          </p>
+                        </div>
+                        <Link
+                          to={`/profissional/${professional.uid}`}
+                          className="inline-flex items-center justify-center rounded-2xl border border-[var(--color-primary)] bg-[var(--color-primary)]/10 px-5 py-3 text-sm font-semibold text-[var(--color-primary)] transition hover:bg-[var(--color-primary)]/20"
+                        >
+                          Ver perfil completo →
+                        </Link>
                       </div>
-                      <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
-                        <p className="text-sm text-slate-500">Distância</p>
-                        <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">
-                          {professional.distanciaKm.toFixed(1)} km
-                        </p>
+
+                      <div className="mt-5 grid gap-4 sm:grid-cols-3">
+                        <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
+                          <p className="text-sm text-slate-500">Avaliações</p>
+                          <div className="mt-2 flex items-center gap-2">
+                            <StarRating
+                              value={professional.avaliacaoMedia}
+                              readOnly
+                              size="sm"
+                            />
+                            <span className="text-sm text-slate-600">
+                              ({professional.totalAvaliacoes} avaliações)
+                            </span>
+                          </div>
+                        </div>
+                        <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
+                          <p className="text-sm text-slate-500">Serviços</p>
+                          <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">
+                            {professional.totalServicos}
+                          </p>
+                        </div>
+                        <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
+                          <p className="text-sm text-slate-500">Distância</p>
+                          <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">
+                            {professional.distanciaKm.toFixed(1)} km
+                          </p>
+                        </div>
                       </div>
                     </div>
                   </div>

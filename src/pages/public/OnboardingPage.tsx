@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import categories from '../../constants/categories';
 import mockProfessionals from '../../constants/mockProfessionals';
@@ -26,6 +26,9 @@ const categoryCards = categories
   }));
 
 const OnboardingPage = () => {
+  const location = useLocation();
+  const state = location.state as { userName?: string; profile?: string } | null;
+  const userName = state?.userName;
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const averageRating = (
     mockProfessionals.reduce((sum, professional) => sum + professional.avaliacaoMedia, 0) /
@@ -67,15 +70,17 @@ const OnboardingPage = () => {
             <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-navy)] shadow-sm">
               ✨ Conectando você aos melhores profissionais
             </span>
-
-            <div className="space-y-6">
-              <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-                Buscando qual <span className="text-[var(--color-primary)]">serviço?</span>
-              </h1>
-              <p className="max-w-2xl text-base text-slate-700 sm:text-lg">
-                Encontre profissionais qualificados, avaliados e próximos de você em segundos. Compare serviços, veja avaliações reais e comece a conversar via WhatsApp sem sair do app.
+            {userName ? (
+              <p className="text-sm font-semibold text-[var(--color-navy)]">
+                Olá, {userName}! Seja bem-vindo.
               </p>
-            </div>
+            ) : null}
+            <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
+              Buscando qual <span className="text-[var(--color-primary)]">serviço?</span>
+            </h1>
+            <p className="max-w-2xl text-base text-slate-700 sm:text-lg">
+              Encontre profissionais qualificados, avaliados e próximos de você em segundos. Compare serviços, veja avaliações reais e comece a conversar via WhatsApp sem sair do app.
+            </p>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <Link to="/login">
@@ -160,14 +165,18 @@ const OnboardingPage = () => {
 
             <div className="grid gap-4 sm:grid-cols-2">
               {categoryCards.map((category) => (
-                <article key={category.title} className="group rounded-[28px] border border-slate-200 bg-slate-50 p-5 transition hover:border-[var(--color-primary)] hover:bg-white">
+                <Link
+                  key={category.title}
+                  to={`/buscar/${encodeURIComponent(category.title.toLowerCase())}`}
+                  className="group rounded-[28px] border border-slate-200 bg-slate-50 p-5 transition hover:border-[var(--color-primary)] hover:bg-white"
+                >
                   <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-3xl bg-[var(--color-primary)]/10 text-2xl">
                     {category.icon}
                   </div>
                   <h3 className="text-lg font-semibold text-slate-900">{category.title}</h3>
                   <p className="mt-2 text-sm text-slate-500">{category.subtitle}</p>
                   <div className="mt-4 text-sm font-semibold text-[var(--color-primary)]">Ver profissionais →</div>
-                </article>
+                </Link>
               ))}
             </div>
           </div>

@@ -1,4 +1,4 @@
-import { Link, useParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
 import StarRating from '../../components/atoms/StarRating';
@@ -7,15 +7,42 @@ import mockReviews from '../../constants/mockReviews';
 
 const ProfessionalProfilePage = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const fromSearchState = location.state as
+    | { fromSearch?: boolean; category?: string; query?: string }
+    | undefined;
   const professional = mockProfessionals.find((item) => item.uid === id) ?? mockProfessionals[0];
 
   const portfolioItems = professional.portfolio;
   const reviews = mockReviews.filter((review) => review.destinatarioId === professional.uid).slice(0, 3);
   const reviewItems = reviews.length ? reviews : mockReviews.slice(0, 2);
 
+  const handleBackToSearch = () => {
+    if (fromSearchState?.fromSearch) {
+      const basePath = fromSearchState.category
+        ? `/buscar/${encodeURIComponent(fromSearchState.category)}`
+        : '/buscar';
+      const queryString = fromSearchState.query
+        ? `?q=${encodeURIComponent(fromSearchState.query)}`
+        : '';
+
+      navigate(`${basePath}${queryString}`);
+      return;
+    }
+
+    navigate('/buscar');
+  };
+
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
       <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 lg:px-8">
+        <div className="mb-6">
+          <Button type="button" variant="secondary" className="inline-flex items-center gap-2" onClick={handleBackToSearch}>
+            ← Voltar para a busca
+          </Button>
+        </div>
+
         <div className="grid gap-10 lg:grid-cols-[1.4fr_0.8fr]">
           <section className="space-y-8">
             <div className="overflow-hidden rounded-[32px] bg-white shadow-lg shadow-slate-200/50 ring-1 ring-slate-200">

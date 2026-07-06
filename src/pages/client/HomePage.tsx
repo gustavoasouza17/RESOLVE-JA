@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import CategoryCard from '../../components/molecules/CategoryCard';
 import MapView from '../../components/organisms/MapView';
 import categories from '../../constants/categories';
@@ -44,11 +44,14 @@ const activeCategories = categories
     id: c.id,
     label: c.nome,
     icon: iconMap[c.icone] ?? '🔧',
-    to: `/buscar/${c.nome.toLowerCase()}`,
+    to: `/buscar/${encodeURIComponent(c.nome.toLowerCase())}`,
   }));
 
 const HomePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const state = location.state as { userName?: string; profile?: string } | null;
+  const userName = state?.userName;
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [search, setSearch] = useState('');
 
@@ -83,7 +86,9 @@ const HomePage = () => {
         <div className="space-y-6">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Home</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">Olá, Cliente!</h1>
+            <h1 className="mt-2 text-3xl font-bold tracking-tight">
+              Olá, {userName ? userName : 'Cliente'}!
+            </h1>
             <p className="mt-2 text-sm text-slate-600">O que você quer fazer hoje?</p>
           </div>
 

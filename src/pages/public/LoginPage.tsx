@@ -52,7 +52,7 @@ const LoginPage = () => {
     try {
       // TODO: substituir por Firebase Auth quando conectado
       await new Promise((resolve) => setTimeout(resolve, 800));
-      navigate('/home');
+      navigate('/');
     } catch {
       setServerError('Sem conexão. Tente novamente.');
     } finally {
