@@ -19,17 +19,17 @@ const CategoryCard = ({
   className = '',
 }: CategoryCardProps) => {
   const content = (
-    <div className="flex items-center gap-4 rounded-[32px] border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[var(--color-primary)]/40 hover:ring-1 hover:ring-[var(--color-primary)]/20 focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/30">
-      <div className="grid h-14 w-14 flex-shrink-0 place-items-center rounded-3xl bg-violet-800 text-white shadow-lg shadow-violet-900/10">
+    <div className="flex items-center gap-4 rounded-[16px] bg-[var(--color-surface-low)] p-5 shadow-[0_12px_30px_rgba(26,43,76,0.05)] transition hover:bg-[var(--color-surface-high)] focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)]/40">
+      <div className="grid h-14 w-14 flex-shrink-0 place-items-center rounded-[14px] bg-gradient-to-br from-[var(--color-navy)] via-[var(--color-tertiary)] to-[var(--color-primary)] text-white shadow-[0_14px_36px_rgba(26,43,76,0.16)]">
         {icon}
       </div>
 
-      <div className="flex-1 min-w-0">
-        <p className="text-base font-semibold text-[var(--color-navy)]">{label}</p>
-        {description ? <p className="mt-1 text-sm text-slate-500">{description}</p> : null}
+      <div className="min-w-0 flex-1">
+        <p className="text-base font-semibold text-[var(--color-navy)] break-normal">{label}</p>
+        {description ? <p className="mt-1 text-sm text-slate-500 break-normal">{description}</p> : null}
       </div>
 
-      <span className="text-xl font-bold text-[var(--color-primary)]">→</span>
+      <span className="text-xl font-bold text-[var(--color-secondary)]">→</span>
     </div>
   );
 

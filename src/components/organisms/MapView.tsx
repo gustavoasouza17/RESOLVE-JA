@@ -32,10 +32,11 @@ type MapViewProps = {
     distance: number;
   }[];
   onSelectProfessional?: (uid: string) => void;
+  onLocationError?: (message: string) => void;
   className?: string;
 };
 
-const MapView = ({ professionals, onSelectProfessional, className = '' }: MapViewProps) => {
+const MapView = ({ professionals, onSelectProfessional, onLocationError, className = '' }: MapViewProps) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const userMarkerRef = useRef<L.Marker | null>(null);
@@ -45,10 +46,12 @@ const MapView = ({ professionals, onSelectProfessional, className = '' }: MapVie
 
   useEffect(() => {
     if (!navigator.geolocation) {
-      setLocationError('Geolocalização não suportada neste navegador.');
+      const message = 'Geolocalização não suportada neste navegador.';
+      setLocationError(message);
       setLoading(false);
       // Fallback: São Paulo center
       setUserLocation({ lat: -23.5505, lng: -46.6333 });
+      onLocationError?.(message);
       return;
     }
 
@@ -61,14 +64,16 @@ const MapView = ({ professionals, onSelectProfessional, className = '' }: MapVie
         setLoading(false);
       },
       (error) => {
-        setLocationError(
+        const message =
           error.code === error.PERMISSION_DENIED
             ? 'Permissão de localização negada. Exibindo posição aproximada.'
-            : 'Não foi possível obter sua localização. Exibindo posição aproximada.'
-        );
+            : 'Não foi possível obter sua localização. Exibindo posição aproximada.';
+
+        setLocationError(message);
         setLoading(false);
         // Fallback: São Paulo center
         setUserLocation({ lat: -23.5505, lng: -46.6333 });
+        onLocationError?.(message);
       },
       { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
     );
@@ -119,6 +124,13 @@ const MapView = ({ professionals, onSelectProfessional, className = '' }: MapVie
     // Re-center when location updates
     mapInstanceRef.current.setView([userLocation.lat, userLocation.lng], mapInstanceRef.current.getZoom());
   }, [userLocation]);
+
+  const handleRecenter = () => {
+    if (!mapInstanceRef.current || !userLocation) return;
+    mapInstanceRef.current.setView([userLocation.lat, userLocation.lng], 13);
+    userMarkerRef.current?.openPopup();
+  };
+
 
   // Add professional markers
   useEffect(() => {
@@ -188,7 +200,15 @@ const MapView = ({ professionals, onSelectProfessional, className = '' }: MapVie
         </div>
       )}
 
-      <div ref={mapContainerRef} className="aspect-[4/3] w-full" style={{ minHeight: '350px' }} />
+      <div ref={mapContainerRef} className="h-[220px] sm:h-[320px] md:h-[380px] w-full" />
+
+      <button
+        type="button"
+        onClick={handleRecenter}
+        className="absolute right-4 bottom-4 z-[1000] rounded-full bg-white px-4 py-3 text-sm font-semibold text-[var(--color-navy)] shadow-lg ring-1 ring-slate-200 transition hover:bg-slate-100"
+      >
+        Recentrar mapa
+      </button>
 
       {professionals.length === 0 && !loading && (
         <div className="p-5">

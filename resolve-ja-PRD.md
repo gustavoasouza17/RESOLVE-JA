@@ -270,11 +270,11 @@ resolve-ja/
 | Elemento | Tipo | Comportamento / Validação |
 |---|---|---|
 | Navbar autenticada | Organism | Logo + nome do usuário + ícone de perfil |
-| Saudação | Texto | "Olá, Cliente!" + subtítulo "O que você quer fazer hoje?" [mockup only] |
+| Saudação | Texto | "Olá, Cliente + nome do usuário!" + subtítulo "O que você quer fazer hoje?" [mockup only] |
 | Barra de busca | Input (search) | Navega para `/buscar/:categoria` ao submeter |
 | Toggle Mapa / Lista | SegmentedControl | Mesmo da S01; troca visualização |
 | Grid de categorias | CategoryCard list | Ícones por categoria; ao clicar navega para `/buscar/:categoria` |
-| Mapa com pins de profissionais | MapView | Exibe prestadores próximos via Geolocation API; visível quando "Ver Mapa" selecionado |
+| Mapa com pins de profissionais | MapView | Exibe prestadores próximos via Geolocation API: usar Open Street Map; visível quando "Ver Mapa" selecionado |
 | Lista de profissionais próximos | ProfessionalCard list | Visível quando "Ver Lista" selecionado |
 | Botão de relocalizar | IconButton | Recentra o mapa na posição atual |
 

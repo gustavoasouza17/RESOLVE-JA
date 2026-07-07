@@ -5,12 +5,36 @@ import Input from '../../components/atoms/Input';
 import categories from '../../constants/categories';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PHONE_REGEX = /^\d{11}$/;
+
+const cleanNumeric = (value: string) => value.replace(/\D/g, '');
+
+const isValidCPF = (cpf: string): boolean => {
+  const cleaned = cleanNumeric(cpf);
+  if (!PHONE_REGEX.test(cleaned)) return false;
+  if (/^(\d)\1+$/.test(cleaned)) return false;
+
+  const calcDigit = (digits: string) => {
+    const nums = digits.split('').map(Number);
+    const factor = nums.length + 1;
+    const sum = nums.reduce((acc, num, index) => acc + num * (factor - index), 0);
+    const result = (sum * 10) % 11;
+    return result === 10 ? 0 : result;
+  };
+
+  const firstNine = cleaned.slice(0, 9);
+  const firstVerifier = calcDigit(firstNine);
+  const secondVerifier = calcDigit(firstNine + firstVerifier);
+  return cleaned.endsWith(`${firstVerifier}${secondVerifier}`);
+};
 
 type ProfileType = 'cliente' | 'prestador';
 
 type FormFields = {
   fullName: string;
   email: string;
+  phone: string;
+  cpf: string;
   password: string;
   confirmPassword: string;
   city: string;
@@ -29,12 +53,14 @@ const profileCards = [
     title: 'Sou Cliente',
     description: 'Preciso contratar um profissional',
     emoji: '🧑‍💼',
+    iconClass: 'bg-[var(--color-primary)]/20',
   },
   {
     key: 'prestador' as ProfileType,
-    title: 'Sou Prestador',
+    title: 'Sou Prestador de Serviço',
     description: 'Quero oferecer meus serviços',
     emoji: '🧰',
+    iconClass: 'bg-gradient-to-br from-violet-700/15 to-pink-500/15',
   },
 ];
 
@@ -45,6 +71,8 @@ const RegisterPage = () => {
   const [fields, setFields] = useState<FormFields>({
     fullName: '',
     email: '',
+    phone: '',
+    cpf: '',
     password: '',
     confirmPassword: '',
     city: '',
@@ -82,6 +110,18 @@ const RegisterPage = () => {
       next.email = 'E-mail é obrigatório.';
     } else if (!EMAIL_REGEX.test(fields.email.trim())) {
       next.email = 'E-mail inválido.';
+    }
+
+    if (!fields.phone.trim()) {
+      next.phone = 'Telefone é obrigatório.';
+    } else if (!PHONE_REGEX.test(cleanNumeric(fields.phone))) {
+      next.phone = 'Telefone deve ter 11 dígitos.';
+    }
+
+    if (!fields.cpf.trim()) {
+      next.cpf = 'CPF é obrigatório.';
+    } else if (!isValidCPF(fields.cpf)) {
+      next.cpf = 'CPF inválido.';
     }
 
     if (!fields.password) {
@@ -131,12 +171,11 @@ const RegisterPage = () => {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
-      navigate('/', {
-        state: {
-          userName: fields.fullName,
-          profile: selectedProfile,
-        },
-      });
+      window.localStorage.setItem(
+        'resolveJaAuth',
+        JSON.stringify({ profile: selectedProfile }),
+      );
+      navigate(selectedProfile === 'prestador' ? '/prestador/home' : '/home');
     } catch {
       setServerError('Erro ao cadastrar. Verifique sua conexão.');
     } finally {
@@ -155,9 +194,10 @@ const RegisterPage = () => {
             </div>
 
             <div className="space-y-4">
-              <h1 className="text-5xl font-bold tracking-tight">Comece agora</h1>
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Conecta Serviços</p>
+              <h1 className="text-5xl font-bold tracking-tight">Bem-vindo!</h1>
               <p className="max-w-xl text-base text-slate-600 sm:text-lg">
-                Escolha seu perfil para continuar e complete o cadastro para acessar a plataforma.
+                Como você deseja acessar a plataforma?
               </p>
             </div>
 
@@ -172,45 +212,34 @@ const RegisterPage = () => {
                       setSelectedProfile(profile.key);
                       setServerError('');
                     }}
-                    className={`flex flex-col gap-4 rounded-[28px] border p-6 text-left transition ${
+                    className={`flex min-h-[220px] flex-col gap-4 rounded-[28px] border p-6 text-left transition ${
                       active
                         ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 shadow-sm'
                         : 'border-slate-200 bg-slate-50 hover:border-slate-300 hover:bg-white'
                     }`}
                   >
-                    <span className="inline-flex h-14 w-14 items-center justify-center rounded-3xl bg-[var(--color-primary)]/20 text-3xl">
+                    <span className={`inline-flex h-14 w-14 items-center justify-center rounded-3xl text-3xl ${profile.iconClass}`}>
                       {profile.emoji}
                     </span>
                     <div>
                       <h2 className="text-lg font-semibold text-[var(--color-navy)]">{profile.title}</h2>
                       <p className="mt-2 text-sm text-slate-600">{profile.description}</p>
                     </div>
-                    <span className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
-                      {active ? 'Selecionado' : 'Selecionar'}
-                    </span>
+                    <div className="mt-auto flex items-center gap-2 text-sm font-semibold uppercase tracking-[0.18em] text-[var(--color-primary)]">
+                      <span>{active ? 'Selecionado' : 'Selecionar'}</span>
+                      <span aria-hidden="true">→</span>
+                    </div>
                   </button>
                 );
               })}
             </div>
-
-            <div className="grid gap-4 rounded-[32px] bg-[var(--color-bg-light)] p-6">
-              <div className="rounded-[24px] bg-white p-5 shadow-sm">
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Informações</p>
-                <p className="mt-3 text-sm text-slate-600">
-                  A tela de cadastro foi atualizada para ser mais clara, com elementos modernos e mantendo a paleta amarela e azul do app.
-                </p>
-              </div>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[24px] bg-[var(--color-primary)]/10 p-4 text-sm text-[var(--color-navy)]">
-                  <p className="font-semibold">Layout limpo</p>
-                  <p className="mt-2 text-slate-600">Formulário organizado em um painel leve e moderno.</p>
-                </div>
-                <div className="rounded-[24px] bg-white p-4 text-sm text-slate-700 shadow-sm">
-                  <p className="font-semibold">Cores consistentes</p>
-                  <p className="mt-2 text-slate-600">Mantém o amarelo e o azul usados em todo o produto.</p>
-                </div>
-              </div>
+            <div className="rounded-[32px] bg-[var(--color-bg-light)] p-4 text-sm text-slate-700">
+              <p className="font-semibold">💡 Você sabia?</p>
+              <p className="mt-2 text-slate-600">
+                Você pode ter ambos os perfis! Prestadores também podem contratar outros profissionais.
+              </p>
             </div>
+
           </section>
 
           <section className="relative overflow-hidden rounded-[40px] bg-white p-10 shadow-[var(--shadow-soft)] ring-1 ring-slate-200">
@@ -248,6 +277,26 @@ const RegisterPage = () => {
                   onChange={(e) => handleField('email', e.target.value)}
                   error={errors.email}
                 />
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Input
+                    label="Telefone"
+                    name="phone"
+                    type="tel"
+                    placeholder="(11) 91234-5678"
+                    value={fields.phone}
+                    onChange={(e) => handleField('phone', e.target.value)}
+                    error={errors.phone}
+                  />
+                  <Input
+                    label="CPF"
+                    name="cpf"
+                    placeholder="000.000.000-00"
+                    value={fields.cpf}
+                    onChange={(e) => handleField('cpf', e.target.value)}
+                    error={errors.cpf}
+                  />
+                </div>
 
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Input

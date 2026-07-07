@@ -17,7 +17,7 @@ const Navbar = ({
   onLogout,
 }: NavbarProps) => {
   return (
-    <header className="border-b border-slate-200 bg-white/90 backdrop-blur-sm">
+    <header className="bg-white/80 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-3 text-[var(--color-navy)]">
           <div className="flex h-11 w-11 items-center justify-center rounded-3xl bg-[var(--color-primary)] text-lg font-bold text-[var(--color-navy)]">

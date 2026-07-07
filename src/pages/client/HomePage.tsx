@@ -1,30 +1,11 @@
-import { useState } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import CategoryCard from '../../components/molecules/CategoryCard';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import Navbar from '../../components/organisms/Navbar';
 import MapView from '../../components/organisms/MapView';
+import CategoryCard from '../../components/molecules/CategoryCard';
+import ProfessionalCard from '../../components/molecules/ProfessionalCard';
 import categories from '../../constants/categories';
 import mockProfessionals from '../../constants/mockProfessionals';
-
-// São Paulo approximate center (fallback)
-const SP_CENTER = { lat: -23.5505, lng: -46.6333 };
-
-/**
- * Generate approximate coordinates around São Paulo based on distanceKm.
- * Each professional gets a random-ish offset proportional to their distance.
- */
-function generateCoord(
-  baseLat: number,
-  baseLng: number,
-  distanceKm: number,
-  seed: number
-): { lat: number; lng: number } {
-  // 1 degree ≈ 111km at equator, ~111*cos(lat) ≈ 102km for longitude at SP latitude
-  const angle = (seed * 137.5) % 360; // golden angle for even-ish distribution
-  const rad = (angle * Math.PI) / 180;
-  const latOffset = (distanceKm / 111) * Math.cos(rad);
-  const lngOffset = (distanceKm / 102) * Math.sin(rad);
-  return { lat: baseLat + latOffset, lng: baseLng + lngOffset };
-}
 
 const iconMap: Record<string, string> = {
   hammer: '🧱',
@@ -37,169 +18,232 @@ const iconMap: Record<string, string> = {
   snowflake: '❄️',
 };
 
-const activeCategories = categories
-  .filter((c) => c.ativa)
-  .slice(0, 6)
-  .map((c) => ({
-    id: c.id,
-    label: c.nome,
-    icon: iconMap[c.icone] ?? '🔧',
-    to: `/buscar/${encodeURIComponent(c.nome.toLowerCase())}`,
-  }));
+const activeCategories = categories.filter((category) => category.ativa).slice(0, 6);
+
+const generateCoord = (
+  baseLat: number,
+  baseLng: number,
+  distanceKm: number,
+  seed: number
+) => {
+  const angle = (seed * 137.5) % 360;
+  const rad = (angle * Math.PI) / 180;
+  const latOffset = (distanceKm / 111) * Math.cos(rad);
+  const lngOffset = (distanceKm / 102) * Math.sin(rad);
+  return { lat: baseLat + latOffset, lng: baseLng + lngOffset };
+};
 
 const HomePage = () => {
   const navigate = useNavigate();
-  const location = useLocation();
-  const state = location.state as { userName?: string; profile?: string } | null;
-  const userName = state?.userName;
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [search, setSearch] = useState('');
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false);
+  const [locationError, setLocationError] = useState('');
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (search.trim()) {
-      window.location.href = `/buscar?q=${encodeURIComponent(search.trim())}`;
-    }
-  };
+  useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
 
-  const nearby = mockProfessionals.slice(0, 6);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
 
-  const mapProfessionals = mockProfessionals.slice(0, 8).map((p, i) => {
-    const coord = generateCoord(SP_CENTER.lat, SP_CENTER.lng, p.distanciaKm, i + 1);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  const categoryCards = useMemo(
+    () =>
+      activeCategories.map((category) => ({
+        title: category.nome,
+        description: 'Profissionais verificados e avaliados',
+        icon: iconMap[category.icone] ?? '🔧',
+        to: `/buscar/${encodeURIComponent(category.nome.toLowerCase())}`,
+      })),
+    []
+  );
+
+  const featuredProfessionals = mockProfessionals
+    .slice()
+    .sort((a, b) => a.distanciaKm - b.distanciaKm)
+    .slice(0, 4);
+
+  const mapProfessionals = featuredProfessionals.map((professional, index) => {
+    const coords = generateCoord(-23.5505, -46.6333, professional.distanciaKm, index + 1);
     return {
-      uid: p.uid,
-      nome: p.nome,
-      categoria: p.categorias[0],
-      lat: coord.lat,
-      lng: coord.lng,
-      distance: p.distanciaKm,
+      uid: professional.uid,
+      nome: professional.nome,
+      categoria: professional.categorias[0],
+      lat: coords.lat,
+      lng: coords.lng,
+      distance: professional.distanciaKm,
     };
   });
+
+  const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = search.trim();
+    if (query) {
+      navigate(`/buscar/${encodeURIComponent(query)}`);
+    }
+  };
 
   const handleSelectProfessional = (uid: string) => {
     navigate(`/profissional/${uid}`);
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
-      <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 lg:px-8">
-        <div className="space-y-6">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Home</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">
-              Olá, {userName ? userName : 'Cliente'}!
-            </h1>
-            <p className="mt-2 text-sm text-slate-600">O que você quer fazer hoje?</p>
-          </div>
+    <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
+      <Navbar variant="client" userName="Laura" profileLink="/perfil" />
 
+      <main className="mx-auto max-w-6xl responsive-page-padding pt-6 lg:px-8">
+        <section className="rounded-[32px] bg-[var(--color-navy)] p-6 text-white shadow-[0_24px_80px_rgba(26,43,76,0.18)]">
+          <div className="flex items-start justify-between gap-4">
+            <div className="max-w-2xl">
+              <p className="text-sm uppercase tracking-[0.24em] text-[var(--color-primary)]/90">Bem-vindo de volta</p>
+              <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">Olá, Cliente!</h1>
+              <p className="mt-4 max-w-xl text-base text-white/85">O que você quer fazer hoje? Busque profissionais, veja quem está disponível perto de você ou peça um orçamento rápido.</p>
+            </div>
+            <div className="hidden rounded-[32px] bg-white/10 p-4 text-center sm:block">
+              <p className="text-sm uppercase tracking-[0.28em] text-[var(--color-primary)]">Top</p>
+              <p className="mt-2 text-3xl font-bold">4.9★</p>
+              <p className="text-sm text-white/80">Média do app</p>
+            </div>
+          </div>
+        </section>
+
+        <section className="mt-6">
           <form onSubmit={handleSearch} className="relative">
             <input
               type="search"
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar profissionais ou categorias…"
-              className="w-full rounded-3xl border border-slate-200 bg-white px-5 py-4 pl-12 text-sm text-slate-800 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Buscar profissionais ou categoria"
+              className="w-full rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-sm text-slate-900 outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
             />
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-slate-400">🔍</span>
           </form>
+        </section>
 
-          <div className="flex gap-3 rounded-2xl bg-white p-2 shadow-sm ring-1 ring-slate-200">
-            <button
-              type="button"
-              onClick={() => setViewMode('list')}
-              className={`flex-1 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                viewMode === 'list'
-                  ? 'bg-[var(--color-navy)] text-white'
-                  : 'bg-transparent text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              Ver Lista
-            </button>
-            <button
-              type="button"
-              onClick={() => setViewMode('map')}
-              className={`flex-1 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                viewMode === 'map'
-                  ? 'bg-[var(--color-navy)] text-white'
-                  : 'bg-transparent text-slate-700 hover:bg-slate-100'
-              }`}
-            >
-              Ver Mapa
-            </button>
-          </div>
-
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Categorias</p>
-              <Link to="/buscar" className="text-sm font-semibold text-[var(--color-primary)] hover:underline">
-                Ver todas
-              </Link>
+        <section className="mt-6 rounded-[32px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-base font-bold text-[var(--color-navy)]">Categorias</p>
+              <p className="text-sm text-slate-500">Escolha a especialidade desejada</p>
             </div>
-            <div className="flex flex-col gap-3">
-              {activeCategories.map((cat) => (
-                <CategoryCard
-                  key={cat.id}
-                  icon={<span className="text-xl">{cat.icon}</span>}
-                  label={cat.label}
-                  description="Profissionais verificados e avaliados"
-                  to={cat.to}
-                />
-              ))}
+            <div className="inline-flex overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
+              <button
+                type="button"
+                onClick={() => setViewMode('list')}
+                className={`px-4 py-2 text-sm font-semibold transition ${
+                  viewMode === 'list'
+                    ? 'bg-[var(--color-navy)] text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Ver Lista
+              </button>
+              <button
+                type="button"
+                onClick={() => setViewMode('map')}
+                className={`px-4 py-2 text-sm font-semibold transition ${
+                  viewMode === 'map'
+                    ? 'bg-[var(--color-navy)] text-white'
+                    : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Ver Mapa
+              </button>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
-                {viewMode === 'list' ? 'Profissionais próximos' : 'Mapa'}
-              </p>
-            </div>
+          <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {categoryCards.map((category) => (
+              <CategoryCard
+                key={category.title}
+                icon={category.icon}
+                label={category.title}
+                description={category.description}
+                to={category.to}
+              />
+            ))}
+          </div>
 
-            {viewMode === 'list' ? (
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                {nearby.map((professional) => (
-                  <Link
-                    key={professional.uid}
-                    to={`/profissional/${professional.uid}`}
-                    className="block rounded-[28px] bg-white shadow-sm ring-1 ring-slate-200 transition hover:ring-[var(--color-primary)]/30"
-                  >
-                    {/* Vertical card: image on top, info below */}
-                    <div className="aspect-[2/3] w-full overflow-hidden rounded-t-[28px] bg-slate-200">
-                      <img
-                        src={professional.fotoUrl}
-                        alt={professional.nome}
-                        className="h-full w-full object-cover object-center"
-                      />
-                    </div>
-                    <div className="space-y-2 p-5">
-                      <p className="text-lg font-bold text-[var(--color-navy)]">{professional.nome}</p>
-                      <p className="text-sm text-slate-500">
-                        {professional.categorias[0]} · {professional.distanciaKm.toFixed(1)} km
-                      </p>
-                      <div className="flex items-center gap-2 text-sm text-slate-600">
-                        <span className="text-[var(--color-star)]">★</span>
-                        <span>{professional.avaliacaoMedia.toFixed(1)}</span>
-                        <span className="text-slate-400">·</span>
-                        <span>{professional.totalServicos} serviços</span>
-                      </div>
-                      <div className="pt-1">
-                        <span className="inline-block rounded-2xl bg-[var(--color-primary)]/15 px-4 py-2 text-sm font-semibold text-[var(--color-navy)] transition hover:bg-[var(--color-primary)]/30">
-                          Ver perfil →
-                        </span>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
+          {isOffline ? (
+            <div className="mt-5 rounded-[32px] bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200">
+              Resultados offline. Alguns dados podem estar desatualizados.
+            </div>
+          ) : null}
+
+          <div className="mt-6 rounded-[32px] bg-[var(--color-bg-light)] p-5 shadow-sm ring-1 ring-slate-200">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-base font-semibold text-[var(--color-navy)]">Profissionais próximos</p>
+                <p className="text-sm text-slate-500">Veja os profissionais mais próximos do seu bairro.</p>
               </div>
-            ) : (
+            </div>
+
+            {viewMode === 'map' ? (
               <MapView
                 professionals={mapProfessionals}
                 onSelectProfessional={handleSelectProfessional}
+                onLocationError={setLocationError}
+                className="mt-5"
               />
+            ) : (
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                {featuredProfessionals.length > 0 ? (
+                  featuredProfessionals.map((professional) => (
+                    <ProfessionalCard
+                      key={professional.uid}
+                      id={professional.uid}
+                      name={professional.nome}
+                      category={professional.categorias[0]}
+                      rating={professional.avaliacaoMedia}
+                      reviews={professional.totalAvaliacoes}
+                      services={professional.totalServicos}
+                      distance={`${professional.distanciaKm.toFixed(1)} km`}
+                      image={professional.fotoUrl}
+                      badgeLabel="Mais perto"
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-[24px] bg-[var(--color-bg-light)] p-6 text-center text-slate-600">
+                    Nenhum profissional encontrado nesta área ainda.
+                  </div>
+                )}
+              </div>
             )}
           </div>
-        </div>
-      </div>
+        </section>
+
+          <aside className="space-y-4">
+            {locationError ? (
+              <div className="rounded-[32px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Localização</p>
+                <p className="mt-3 text-sm text-slate-600">{locationError} Informe o bairro ou CEP abaixo.</p>
+                <input
+                  type="text"
+                  placeholder="Digite seu bairro ou CEP"
+                  className="mt-4 w-full rounded-3xl border border-slate-200 bg-[var(--color-bg-light)] px-4 py-3 text-sm text-slate-800 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                />
+              </div>
+            ) : null}
+
+            <div className="rounded-[32px] bg-[var(--color-navy)] p-5 text-white shadow-[0_24px_80px_rgba(26,43,76,0.18)]">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--color-primary)]">Destaque</p>
+              <h2 className="mt-3 text-2xl font-bold">Precisa de ajuda rápida?</h2>
+              <p className="mt-2 text-sm text-white/80">Peça um orçamento com descrição e receba retorno de quem já está disponível.</p>
+              <Link
+                to="/proposta/prof001"
+                className="mt-4 inline-flex w-full items-center justify-center rounded-[24px] bg-[var(--color-primary)] px-4 py-4 text-sm font-semibold text-[var(--color-navy)] shadow-sm"
+              >
+                Solicitar orçado imediato
+              </Link>
+            </div>
+          </aside>
+      </main>
     </div>
   );
 };

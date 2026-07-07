@@ -1,1 +1,40 @@
 @import "tailwindcss";
+
+:root {
+  color: var(--color-text-body);
+  background-color: var(--color-bg-light);
+  font-family: var(--font-body);
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  background: linear-gradient(180deg, #FCFCFD 0%, var(--color-bg-light) 100%);
+  color: var(--color-text-body);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  letter-spacing: -0.02em;
+}
+
+button, input, textarea, select {
+  font: inherit;
+}
+
+.responsive-page-padding {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+@media (min-width: 390px) {
+  .responsive-page-padding {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}

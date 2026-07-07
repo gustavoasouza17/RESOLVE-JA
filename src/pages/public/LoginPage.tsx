@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
+import StatsBanner from '../../components/molecules/StatsBanner';
 import mockProfessionals from '../../constants/mockProfessionals';
 import mockProposals from '../../constants/mockProposals';
 
@@ -52,7 +53,8 @@ const LoginPage = () => {
     try {
       // TODO: substituir por Firebase Auth quando conectado
       await new Promise((resolve) => setTimeout(resolve, 800));
-      navigate('/');
+      window.localStorage.setItem('resolveJaAuth', JSON.stringify({ profile: 'cliente' }));
+      navigate('/home');
     } catch {
       setServerError('Sem conexão. Tente novamente.');
     } finally {
@@ -85,7 +87,7 @@ const LoginPage = () => {
       <div className="mx-auto flex min-h-screen max-w-6xl flex-col justify-center px-5 py-10 sm:px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
           <section className="space-y-6">
-            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">Bem-vindo ao nosso serviço</p>
+            <p className="text-sm font-semibold uppercase tracking-[0.3em] text-slate-500">Bem-vindo ao Resolve Já</p>
             <h1 className="max-w-2xl text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
               Buscando qual <span className="text-[var(--color-primary)]">serviço?</span>
             </h1>
@@ -155,10 +157,14 @@ const LoginPage = () => {
           </section>
         </div>
 
-        <section className="mt-12 grid gap-4 rounded-[32px] bg-[var(--color-navy)] p-6 text-white shadow-lg shadow-slate-900/10 sm:grid-cols-3">
+        <div className="mt-12 block lg:hidden">
+          <StatsBanner metrics={stats} />
+        </div>
+
+        <section className="mt-12 hidden grid-cols-3 gap-4 lg:grid">
           {stats.map((item) => (
-            <div key={item.label} className="rounded-3xl bg-white/10 p-5">
-              <p className="text-3xl font-bold text-white">{item.value}</p>
+            <div key={item.label} className="rounded-3xl bg-[var(--color-navy)]/90 p-5 text-white shadow-lg shadow-slate-900/10">
+              <p className="text-3xl font-bold">{item.value}</p>
               <p className="mt-2 text-sm text-slate-200">{item.label}</p>
             </div>
           ))}

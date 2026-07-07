@@ -16,12 +16,12 @@ const Button = ({
   ...rest
 }: ButtonProps) => {
   const baseStyles =
-    'inline-flex items-center justify-center rounded-[24px] px-5 py-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
+    'inline-flex items-center justify-center rounded-[12px] px-5 py-3 text-sm font-semibold transition focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60';
 
   const variantStyles =
     variant === 'secondary'
-      ? 'border border-slate-300 bg-white text-slate-900 hover:border-slate-400 hover:bg-slate-50 focus:ring-slate-200'
-      : 'bg-[var(--color-primary)] text-[var(--color-navy)] hover:bg-[#fce967] focus:ring-[var(--color-primary)]';
+      ? 'bg-[var(--color-navy)] text-white hover:bg-[var(--color-tertiary)] focus:ring-[var(--color-primary)]'
+      : 'bg-[var(--color-secondary)] text-[var(--color-navy)] shadow-[0_12px_32px_rgba(255,217,0,0.18)] hover:brightness-95 focus:ring-[var(--color-secondary)]';
 
   return (
     <button

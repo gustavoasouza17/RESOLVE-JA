@@ -1,16 +1,22 @@
 :root {
   /* Core branding */
   --color-primary: #FFD900;
+  --color-secondary: #FFD900;
+  --color-tertiary: #1E3A8A;
   --color-navy: #1A2B4C;
   --color-white: #FFFFFF;
+  --color-neutral: #F0F0F8;
   --color-bg-light: #F0F0F8;
   --color-text-body: #333333;
   --color-text-muted: #888888;
   --color-star: #FFB800;
+  --color-surface-lowest: #FFFFFF;
+  --color-surface-low: #F3F4F5;
+  --color-surface-high: #E7E8E9;
 
   /* Typography */
-  --font-heading: 'Montserrat', sans-serif;
-  --font-body: 'Roboto', sans-serif;
+  --font-heading: 'Manrope', sans-serif;
+  --font-body: 'Inter', sans-serif;
 
   /* Spacing */
   --space-xs: 4px;
@@ -21,9 +27,11 @@
 
   /* Border radius */
   --radius-sm: 8px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
 
   /* Shadows */
-  --shadow-soft: 0 12px 28px rgba(26, 43, 76, 0.12);
+  --shadow-soft: 0 24px 80px rgba(26, 43, 76, 0.08);
+  --shadow-ambient: 0 18px 48px rgba(255, 217, 0, 0.16);
 }

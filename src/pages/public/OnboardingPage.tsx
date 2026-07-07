@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
+import CategoryCard from '../../components/molecules/CategoryCard';
+import StatsBanner from '../../components/molecules/StatsBanner';
+import Navbar from '../../components/organisms/Navbar';
 import categories from '../../constants/categories';
 import mockProfessionals from '../../constants/mockProfessionals';
 import mockProposals from '../../constants/mockProposals';
@@ -21,8 +24,9 @@ const categoryCards = categories
   .slice(0, 6)
   .map((category) => ({
     title: category.nome,
-    subtitle: `Serviços de ${category.nome.toLowerCase()}`,
+    subtitle: 'Profissionais verificados e avaliados',
     icon: iconMap[category.icone] ?? '🔧',
+    to: `/buscar/${encodeURIComponent(category.nome.toLowerCase())}`,
   }));
 
 const OnboardingPage = () => {
@@ -30,6 +34,7 @@ const OnboardingPage = () => {
   const state = location.state as { userName?: string; profile?: string } | null;
   const userName = state?.userName;
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+
   const averageRating = (
     mockProfessionals.reduce((sum, professional) => sum + professional.avaliacaoMedia, 0) /
     mockProfessionals.length
@@ -45,38 +50,19 @@ const OnboardingPage = () => {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-5 py-5 sm:px-6 lg:px-8">
-        <div className="space-y-1">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Resolve Já</p>
-          <p className="text-lg font-semibold">Conectando você aos melhores profissionais</p>
-        </div>
+      <Navbar variant="public" />
 
-        <div className="flex items-center gap-3">
-          <Link
-            to="/admin"
-            className="hidden rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:border-slate-400 hover:bg-slate-50 md:inline-flex"
-          >
-            Acesso Admin
-          </Link>
-          <Link to="/login">
-            <Button variant="primary">Entrar / Cadastrar</Button>
-          </Link>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-6xl px-5 pb-16 sm:px-6 lg:px-8">
-        <section className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr] lg:items-center">
+      <main className="mx-auto max-w-6xl px-5 pb-16 pt-8 sm:px-6 lg:px-8 lg:pt-10">
+        <section className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr] lg:items-center">
           <div className="space-y-6">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-navy)] shadow-sm">
+            <span className="inline-flex items-center gap-2 rounded-full bg-[var(--color-secondary)] px-4 py-2 text-sm font-semibold text-[var(--color-navy)] shadow-[0_12px_32px_rgba(255,217,0,0.16)]">
               ✨ Conectando você aos melhores profissionais
             </span>
             {userName ? (
-              <p className="text-sm font-semibold text-[var(--color-navy)]">
-                Olá, {userName}! Seja bem-vindo.
-              </p>
+              <p className="text-sm font-semibold text-[var(--color-navy)]">Olá, {userName}! Seja bem-vindo.</p>
             ) : null}
-            <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-              Buscando qual <span className="text-[var(--color-primary)]">serviço?</span>
+            <h1 className="max-w-3xl text-4xl font-extrabold leading-[0.95] tracking-[-0.03em] sm:text-5xl lg:text-6xl">
+              Buscando qual <span className="text-[var(--color-secondary)]">serviço?</span>
             </h1>
             <p className="max-w-2xl text-base text-slate-700 sm:text-lg">
               Encontre profissionais qualificados, avaliados e próximos de você em segundos. Compare serviços, veja avaliações reais e comece a conversar via WhatsApp sem sair do app.
@@ -85,7 +71,7 @@ const OnboardingPage = () => {
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
               <Link to="/login">
                 <Button className="w-full sm:w-auto" variant="primary">
-                  Começar agora
+                  Entrar / Cadastrar
                 </Button>
               </Link>
               <Link to="/buscar">
@@ -94,9 +80,16 @@ const OnboardingPage = () => {
                 </Button>
               </Link>
             </div>
+
+            <div className="rounded-[20px] bg-[var(--color-surface-lowest)]/90 p-5 shadow-[0_16px_48px_rgba(26,43,76,0.06)] backdrop-blur-xl">
+              <p className="text-sm font-semibold text-[var(--color-navy)]">💡 Você sabia?</p>
+              <p className="mt-2 text-sm text-slate-600">
+                Prestadores também podem contratar outros profissionais. A plataforma suporta ambos os perfis.
+              </p>
+            </div>
           </div>
 
-          <div className="rounded-[32px] bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200">
+          <div className="rounded-[24px] bg-[var(--color-surface-lowest)] p-6 shadow-[0_24px_80px_rgba(26,43,76,0.08)]">
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Visão rápida</p>
@@ -107,21 +100,23 @@ const OnboardingPage = () => {
               </div>
             </div>
 
-            <div className="mt-6 flex gap-3 rounded-2xl bg-slate-100 p-2">
+            <div className="mt-6 flex gap-3 rounded-[16px] bg-[var(--color-surface-low)] p-2" role="tablist" aria-label="Modo de visualização">
               <button
                 type="button"
+                aria-pressed={viewMode === 'list'}
                 onClick={() => setViewMode('list')}
-                className={`flex-1 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                  viewMode === 'list' ? 'bg-[var(--color-navy)] text-white' : 'bg-transparent text-slate-700 hover:bg-slate-200'
+                className={`flex-1 rounded-[12px] px-4 py-3 text-sm font-semibold transition ${
+                  viewMode === 'list' ? 'bg-[var(--color-navy)] text-white' : 'bg-transparent text-slate-700 hover:bg-white'
                 }`}
               >
                 Ver Lista
               </button>
               <button
                 type="button"
+                aria-pressed={viewMode === 'map'}
                 onClick={() => setViewMode('map')}
-                className={`flex-1 rounded-2xl px-4 py-3 text-sm font-semibold transition ${
-                  viewMode === 'map' ? 'bg-[var(--color-navy)] text-white' : 'bg-transparent text-slate-700 hover:bg-slate-200'
+                className={`flex-1 rounded-[12px] px-4 py-3 text-sm font-semibold transition ${
+                  viewMode === 'map' ? 'bg-[var(--color-navy)] text-white' : 'bg-transparent text-slate-700 hover:bg-white'
                 }`}
               >
                 Ver Mapa
@@ -131,70 +126,62 @@ const OnboardingPage = () => {
             <div className="mt-6 space-y-4">
               {viewMode === 'list' ? (
                 <div className="space-y-4">
-                  <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                  <div className="rounded-[20px] bg-[var(--color-surface-low)] p-5">
                     <p className="text-sm font-semibold text-slate-500">Profissionais próximos</p>
                     <div className="mt-4 space-y-3">
                       {professionalsPreview.map((professional) => (
-                        <div key={professional.uid} className="rounded-3xl bg-white p-4 shadow-sm">
-                          <p className="font-semibold text-slate-900">{professional.nome} · {professional.categorias[0]}</p>
-                          <p className="text-sm text-slate-500">{professional.distanciaKm.toFixed(1)} km · {professional.avaliacaoMedia} ★</p>
+                        <div key={professional.uid} className="rounded-[16px] bg-white p-4 shadow-[0_10px_24px_rgba(26,43,76,0.04)]">
+                          <p className="font-semibold text-slate-900">
+                            {professional.nome} · {professional.categorias[0]}
+                          </p>
+                          <p className="text-sm text-slate-500">
+                            {professional.distanciaKm.toFixed(1)} km · {professional.avaliacaoMedia} ★
+                          </p>
                         </div>
                       ))}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
-                  <div className="aspect-[4/3] rounded-3xl bg-gradient-to-br from-slate-200 via-slate-100 to-slate-50" />
-                  <p className="mt-4 text-sm text-slate-600">Veja os profissionais mais próximos na sua região com um mapa intuitivo.</p>
+                <div className="rounded-[20px] bg-[var(--color-surface-low)] p-5">
+                  <div className="aspect-[4/3] rounded-[16px] bg-gradient-to-br from-[var(--color-surface-high)] via-white to-[var(--color-secondary)]/40" />
+                  <p className="mt-4 text-sm text-slate-600">
+                    Veja os profissionais mais próximos na sua região com um mapa intuitivo.
+                  </p>
                 </div>
               )}
             </div>
           </div>
         </section>
 
-        <section className="mt-14 grid gap-8 lg:grid-cols-[1.3fr_0.7fr]">
-          <div className="rounded-[32px] bg-white p-6 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200">
-            <div className="mb-6 flex items-center justify-between">
+        <section className="mt-14 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-[24px] bg-[var(--color-surface-lowest)] p-6 shadow-[0_24px_80px_rgba(26,43,76,0.08)]">
+            <div className="mb-6 flex items-center justify-between gap-4">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Categorias populares</p>
                 <h2 className="mt-2 text-2xl font-bold text-[var(--color-navy)]">Encontre o serviço certo</h2>
               </div>
-              <div className="rounded-2xl bg-[var(--color-bg-light)] px-3 py-2 text-sm text-slate-700">6 opções</div>
+              <div className="rounded-2xl bg-[var(--color-bg-light)] px-3 py-2 text-sm text-slate-700">
+                {categoryCards.length} opções
+              </div>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2">
               {categoryCards.map((category) => (
-                <Link
+                <CategoryCard
                   key={category.title}
-                  to={`/buscar/${encodeURIComponent(category.title.toLowerCase())}`}
-                  className="group rounded-[28px] border border-slate-200 bg-slate-50 p-5 transition hover:border-[var(--color-primary)] hover:bg-white"
-                >
-                  <div className="mb-4 inline-flex h-12 w-12 items-center justify-center rounded-3xl bg-[var(--color-primary)]/10 text-2xl">
-                    {category.icon}
-                  </div>
-                  <h3 className="text-lg font-semibold text-slate-900">{category.title}</h3>
-                  <p className="mt-2 text-sm text-slate-500">{category.subtitle}</p>
-                  <div className="mt-4 text-sm font-semibold text-[var(--color-primary)]">Ver profissionais →</div>
-                </Link>
+                  icon={category.icon}
+                  label={category.title}
+                  description={category.subtitle}
+                  to={category.to}
+                />
               ))}
             </div>
           </div>
 
-          <aside className="space-y-6 rounded-[32px] bg-[var(--color-navy)] p-6 text-white shadow-lg shadow-slate-900/10">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--color-primary)]">Estatísticas</p>
-            <h2 className="text-2xl font-bold">Mais segurança em suas pesquisas</h2>
-            <p className="text-sm text-slate-200">Resultados rápidos, profissionais verificados e avaliações reais. Tudo em um só lugar.</p>
-
-            <div className="grid gap-4 pt-4 sm:grid-cols-1">
-              {stats.map((item) => (
-                <div key={item.label} className="rounded-3xl bg-white/10 p-4">
-                  <p className="text-3xl font-bold text-white">{item.value}</p>
-                  <p className="mt-1 text-sm text-slate-200">{item.label}</p>
-                </div>
-              ))}
-            </div>
-          </aside>
+          <div className="space-y-4">
+            <StatsBanner metrics={stats} />
+          </div>
         </section>
       </main>
     </div>
