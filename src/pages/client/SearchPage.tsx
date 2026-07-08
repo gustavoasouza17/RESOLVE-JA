@@ -284,9 +284,9 @@ const SearchPage = () => {
               {filtered.map((professional) => (
                 <article
                   key={professional.uid}
-                  className="overflow-hidden rounded-[32px] bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-200"
+                  className="rounded-[32px] bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-200"
                 >
-                  <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6">
+                  <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6 shadow-xl rounded-[32px] bg-white">
                     <div className="w-full shrink-0 sm:w-44 md:w-48 lg:w-52">
                       <div className="relative overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100 p-0 shadow-sm">
                         <div className="aspect-[3/4] overflow-hidden rounded-[18px] bg-white">
