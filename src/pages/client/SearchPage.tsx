@@ -1,10 +1,15 @@
-import { useEffect, useState } from 'react';
-import { Link, useParams, useSearchParams, useNavigate } from 'react-router-dom';
-import MapView from '../../components/organisms/MapView';
-import Button from '../../components/atoms/Button';
-import StarRating from '../../components/atoms/StarRating';
-import mockProfessionals from '../../constants/mockProfessionals';
-import categories from '../../constants/categories';
+import { useEffect, useState } from "react";
+import {
+  Link,
+  useParams,
+  useSearchParams,
+  useNavigate,
+} from "react-router-dom";
+import MapView from "../../components/organisms/MapView";
+import Button from "../../components/atoms/Button";
+import StarRating from "../../components/atoms/StarRating";
+import mockProfessionals from "../../constants/mockProfessionals";
+import categories from "../../constants/categories";
 
 // São Paulo approximate center (fallback)
 const SP_CENTER = { lat: -23.5505, lng: -46.6333 };
@@ -13,7 +18,7 @@ function generateCoord(
   baseLat: number,
   baseLng: number,
   distanceKm: number,
-  seed: number
+  seed: number,
 ): { lat: number; lng: number } {
   const angle = (seed * 137.5) % 360;
   const rad = (angle * Math.PI) / 180;
@@ -25,29 +30,29 @@ function generateCoord(
 const normalizeCategoryValue = (value: string) =>
   value
     .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .replace(/[^a-z0-9]+/g, '');
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
 
 const resolveCategoryFromParam = (param?: string) => {
-  if (!param) return '';
+  if (!param) return "";
 
   const normalizedParam = normalizeCategoryValue(param);
   const match = categories.find(
-    (category) => normalizeCategoryValue(category.nome) === normalizedParam
+    (category) => normalizeCategoryValue(category.nome) === normalizedParam,
   );
 
-  return match?.nome ?? '';
+  return match?.nome ?? "";
 };
 
 const SearchPage = () => {
   const { categoria } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
-  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
-  const [search, setSearch] = useState(searchParams.get('q') || '');
-  const [selectedCategory, setSelectedCategory] = useState('');
-  const [sortBy, setSortBy] = useState<'distance' | 'rating'>('distance');
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [search, setSearch] = useState(searchParams.get("q") || "");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [sortBy, setSortBy] = useState<"distance" | "rating">("distance");
 
   useEffect(() => {
     setSelectedCategory(resolveCategoryFromParam(categoria));
@@ -59,7 +64,7 @@ const SearchPage = () => {
   let filtered = mockProfessionals.filter((professional) => {
     if (lowerCategory) {
       const matchesCategory = professional.categorias.some((cat) =>
-        cat.toLowerCase().includes(lowerCategory)
+        cat.toLowerCase().includes(lowerCategory),
       );
       if (!matchesCategory) return false;
     }
@@ -67,7 +72,7 @@ const SearchPage = () => {
       const matchesSearch =
         professional.nome.toLowerCase().includes(query) ||
         professional.categorias.some((cat) =>
-          cat.toLowerCase().includes(query)
+          cat.toLowerCase().includes(query),
         ) ||
         professional.bio.toLowerCase().includes(query);
       if (!matchesSearch) return false;
@@ -75,11 +80,11 @@ const SearchPage = () => {
     return true;
   });
 
-  if (sortBy === 'distance') {
+  if (sortBy === "distance") {
     filtered = [...filtered].sort((a, b) => a.distanciaKm - b.distanciaKm);
   } else {
     filtered = [...filtered].sort(
-      (a, b) => b.avaliacaoMedia - a.avaliacaoMedia
+      (a, b) => b.avaliacaoMedia - a.avaliacaoMedia,
     );
   }
 
@@ -94,14 +99,14 @@ const SearchPage = () => {
 
   const handleCategoryClick = (cat: string) => {
     const nextCategory =
-      selectedCategory.toLowerCase() === cat.toLowerCase() ? '' : cat;
+      selectedCategory.toLowerCase() === cat.toLowerCase() ? "" : cat;
 
     setSelectedCategory(nextCategory);
 
     if (nextCategory) {
       navigate(`/buscar/${encodeURIComponent(nextCategory)}`);
     } else {
-      navigate('/buscar');
+      navigate("/buscar");
     }
   };
 
@@ -120,7 +125,7 @@ const SearchPage = () => {
       SP_CENTER.lat,
       SP_CENTER.lng,
       p.distanciaKm,
-      i + 1
+      i + 1,
     );
     return {
       uid: p.uid,
@@ -139,27 +144,31 @@ const SearchPage = () => {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex-1">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
-                {selectedCategory || 'Buscar'}
+                {selectedCategory || "Buscar"}
               </p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight">
                 {selectedCategory
                   ? `Profissionais de ${selectedCategory}`
-                  : 'Encontre o profissional ideal'}
+                  : "Encontre o profissional ideal"}
               </h1>
               <p className="mt-2 text-sm text-slate-600">
                 {filtered.length === 0
-                  ? 'Nenhum profissional encontrado para essa busca.'
-                  : `${filtered.length} ${filtered.length === 1 ? 'profissional encontrado' : 'profissionais encontrados'} perto de você.`}
+                  ? "Nenhum profissional encontrado para essa busca."
+                  : `${filtered.length} ${filtered.length === 1 ? "profissional encontrado" : "profissionais encontrados"} perto de você.`}
               </p>
             </div>
-            <Button type="button" variant="secondary" className="inline-flex items-center gap-2" onClick={() => navigate('/')}>
+            <Button
+              type="button"
+              variant="secondary"
+              className="inline-flex items-center gap-2"
+              onClick={() => navigate("/")}
+            >
               ← Tela principal
             </Button>
           </div>
 
           {/* Header */}
-          <div>
-          </div>
+          <div></div>
 
           {/* Search bar */}
           <form onSubmit={handleSearch} className="relative">
@@ -186,8 +195,8 @@ const SearchPage = () => {
                   onClick={() => handleCategoryClick(cat.nome)}
                   className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
                     selectedCategory.toLowerCase() === cat.nome.toLowerCase()
-                      ? 'bg-[var(--color-navy)] text-white'
-                      : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100'
+                      ? "bg-[var(--color-navy)] text-white"
+                      : "bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100"
                   }`}
                 >
                   {cat.nome}
@@ -200,22 +209,22 @@ const SearchPage = () => {
             <div className="flex gap-1">
               <button
                 type="button"
-                onClick={() => setSortBy('distance')}
+                onClick={() => setSortBy("distance")}
                 className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                  sortBy === 'distance'
-                    ? 'bg-[var(--color-navy)] text-white'
-                    : 'bg-transparent text-slate-700 hover:bg-slate-100'
+                  sortBy === "distance"
+                    ? "bg-[var(--color-navy)] text-white"
+                    : "bg-transparent text-slate-700 hover:bg-slate-100"
                 }`}
               >
                 Mais próximos
               </button>
               <button
                 type="button"
-                onClick={() => setSortBy('rating')}
+                onClick={() => setSortBy("rating")}
                 className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                  sortBy === 'rating'
-                    ? 'bg-[var(--color-navy)] text-white'
-                    : 'bg-transparent text-slate-700 hover:bg-slate-100'
+                  sortBy === "rating"
+                    ? "bg-[var(--color-navy)] text-white"
+                    : "bg-transparent text-slate-700 hover:bg-slate-100"
                 }`}
               >
                 Melhor avaliados
@@ -224,22 +233,22 @@ const SearchPage = () => {
             <div className="flex gap-1">
               <button
                 type="button"
-                onClick={() => setViewMode('list')}
+                onClick={() => setViewMode("list")}
                 className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                  viewMode === 'list'
-                    ? 'bg-[var(--color-navy)] text-white'
-                    : 'bg-transparent text-slate-700 hover:bg-slate-100'
+                  viewMode === "list"
+                    ? "bg-[var(--color-navy)] text-white"
+                    : "bg-transparent text-slate-700 hover:bg-slate-100"
                 }`}
               >
                 Lista
               </button>
               <button
                 type="button"
-                onClick={() => setViewMode('map')}
+                onClick={() => setViewMode("map")}
                 className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                  viewMode === 'map'
-                    ? 'bg-[var(--color-navy)] text-white'
-                    : 'bg-transparent text-slate-700 hover:bg-slate-100'
+                  viewMode === "map"
+                    ? "bg-[var(--color-navy)] text-white"
+                    : "bg-transparent text-slate-700 hover:bg-slate-100"
                 }`}
               >
                 Mapa
@@ -260,8 +269,8 @@ const SearchPage = () => {
               <button
                 type="button"
                 onClick={() => {
-                  setSearch('');
-                  setSelectedCategory('');
+                  setSearch("");
+                  setSelectedCategory("");
                   setSearchParams({});
                 }}
                 className="mt-6 rounded-2xl bg-[var(--color-primary)] px-6 py-3 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
@@ -269,22 +278,22 @@ const SearchPage = () => {
                 Limpar filtros
               </button>
             </div>
-          ) : viewMode === 'list' ? (
+          ) : viewMode === "list" ? (
             /* Results — list view */
             <div className="space-y-6">
               {filtered.map((professional) => (
                 <article
                   key={professional.uid}
-                  className="overflow-hidden rounded-[32px] bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-200"
+                  className="rounded-[32px] bg-white shadow-lg shadow-slate-200/40 ring-1 ring-slate-200"
                 >
-                  <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6">
+                  <div className="flex flex-col gap-5 p-5 sm:flex-row sm:items-start sm:p-6 shadow-xl rounded-[32px] bg-white">
                     <div className="w-full shrink-0 sm:w-44 md:w-48 lg:w-52">
-                      <div className="relative overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100 p-2 shadow-sm">
+                      <div className="relative overflow-hidden rounded-[24px] border border-slate-200 bg-slate-100 p-0 shadow-sm">
                         <div className="aspect-[3/4] overflow-hidden rounded-[18px] bg-white">
                           <img
                             src={professional.fotoUrl}
                             alt={`${professional.nome} — ${professional.categorias[0]}`}
-                            className="h-full w-full object-contain object-center"
+                            className="h-full w-full object-cover object-center"
                           />
                         </div>
                         <div className="absolute left-3 top-3 rounded-2xl bg-slate-900/80 px-3 py-2 text-sm font-semibold text-white">
