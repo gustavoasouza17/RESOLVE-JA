@@ -19,7 +19,19 @@ const proposalCards = mockProposals.slice(0, 2).map((proposal) => {
     badgeVariant,
   };
 });
+const getUserName = () => {
+  try {
+    const raw = window.localStorage.getItem('resolveJaAuth');
+    if (!raw) return 'Profissional';
+    const parsed = JSON.parse(raw);
+    return parsed.fullName || 'Profissional';
+  } catch {
+    return 'Profissional';
+  }
+};
+
 const ProfessionalHomePage = () => {
+  const userName = getUserName();
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
       <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 lg:px-8">
@@ -27,7 +39,7 @@ const ProfessionalHomePage = () => {
           <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div className="space-y-3">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Dashboard do prestador</p>
-              <h1 className="text-3xl font-bold tracking-tight">Boas-vindas, Carlos</h1>
+              <h1 className="text-3xl font-bold tracking-tight">Boas-vindas, {userName}</h1>
               <p className="max-w-2xl text-sm text-slate-600">Veja novas oportunidades de propostas e acompanhe seu desempenho.</p>
             </div>
             <Button variant="primary">Publicar novo serviço</Button>

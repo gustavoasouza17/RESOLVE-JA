@@ -10,14 +10,27 @@ type NavbarProps = {
   onLogout?: () => void;
 };
 
+const getUserFromStorage = () => {
+  try {
+    const raw = window.localStorage.getItem('resolveJaAuth');
+    if (!raw) return { fullName: 'Usuário', profile: null };
+    const parsed = JSON.parse(raw);
+    return { fullName: parsed.fullName || 'Usuário', profile: parsed.profile || null };
+  } catch {
+    return { fullName: 'Usuário', profile: null };
+  }
+};
+
 const Navbar = ({
   variant = 'public',
-  userName = 'Usuário',
+  userName,
   profileLink = '/perfil',
   onLogout,
 }: NavbarProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const stored = getUserFromStorage();
+  const displayName = userName || stored.fullName;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -85,7 +98,7 @@ const Navbar = ({
           </div>
         ) : variant === 'client' ? (
           <div className="flex items-center gap-3">
-            <div className="rounded-3xl bg-[var(--color-bg-light)] px-4 py-2 text-sm text-slate-700">Olá, {userName}</div>
+            <div className="rounded-3xl bg-[var(--color-bg-light)] px-4 py-2 text-sm text-slate-700">Olá, {displayName}</div>
             <Link to={profileLink} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
               Meu perfil
             </Link>
@@ -99,7 +112,7 @@ const Navbar = ({
           </div>
         ) : (
           <div className="flex items-center gap-3">
-            <div className="rounded-3xl bg-[var(--color-bg-light)] px-4 py-2 text-sm text-slate-700">Olá, {userName}</div>
+            <div className="rounded-3xl bg-[var(--color-bg-light)] px-4 py-2 text-sm text-slate-700">Olá, {displayName}</div>
             <Link to={profileLink} className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50">
               Meu perfil
             </Link>

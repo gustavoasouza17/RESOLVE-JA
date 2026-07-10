@@ -4,7 +4,19 @@ import StarRating from '../../components/atoms/StarRating';
 import mockProposals from '../../constants/mockProposals';
 import mockReviews from '../../constants/mockReviews';
 
+const getUserName = () => {
+  try {
+    const raw = window.localStorage.getItem('resolveJaAuth');
+    if (!raw) return 'Usuário';
+    const parsed = JSON.parse(raw);
+    return parsed.fullName || 'Usuário';
+  } catch {
+    return 'Usuário';
+  }
+};
+
 const ClientProfilePage = () => {
+  const userName = getUserName();
   const historyItems = mockProposals
     .filter((proposal) => proposal.clienteId === 'client001')
     .slice(0, 3)
@@ -33,10 +45,10 @@ const ClientProfilePage = () => {
           <section className="space-y-8">
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200">
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-                <Avatar name="Mariana Costa" size="lg" />
+                <Avatar name={userName} size="lg" />
                 <div className="space-y-3">
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Perfil do cliente</p>
-                  <h1 className="text-3xl font-bold tracking-tight">Mariana Costa</h1>
+                  <h1 className="text-3xl font-bold tracking-tight">{userName}</h1>
                   <p className="text-sm text-slate-600">São Paulo, SP</p>
                 </div>
               </div>

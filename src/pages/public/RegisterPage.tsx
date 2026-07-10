@@ -173,7 +173,7 @@ const RegisterPage = () => {
       await new Promise((resolve) => setTimeout(resolve, 800));
       window.localStorage.setItem(
         'resolveJaAuth',
-        JSON.stringify({ profile: selectedProfile }),
+        JSON.stringify({ profile: selectedProfile, fullName: fields.fullName.trim() }),
       );
       navigate(selectedProfile === 'prestador' ? '/prestador/home' : '/home');
     } catch {

@@ -53,7 +53,8 @@ const LoginPage = () => {
     try {
       // TODO: substituir por Firebase Auth quando conectado
       await new Promise((resolve) => setTimeout(resolve, 800));
-      window.localStorage.setItem('resolveJaAuth', JSON.stringify({ profile: 'cliente' }));
+      const nameFromEmail = email.split('@')[0].replace(/[._]/g, ' ');
+      window.localStorage.setItem('resolveJaAuth', JSON.stringify({ profile: 'cliente', fullName: nameFromEmail }));
       navigate('/home');
     } catch {
       setServerError('Sem conexão. Tente novamente.');

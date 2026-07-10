@@ -33,12 +33,24 @@ const generateCoord = (
   return { lat: baseLat + latOffset, lng: baseLng + lngOffset };
 };
 
+const getUserName = () => {
+  try {
+    const raw = window.localStorage.getItem('resolveJaAuth');
+    if (!raw) return 'Usuário';
+    const parsed = JSON.parse(raw);
+    return parsed.fullName || 'Usuário';
+  } catch {
+    return 'Usuário';
+  }
+};
+
 const HomePage = () => {
   const navigate = useNavigate();
   const [search, setSearch] = useState('');
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false);
   const [locationError, setLocationError] = useState('');
+  const userName = getUserName();
 
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
@@ -95,14 +107,14 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
-      <Navbar variant="client" userName="Laura" profileLink="/perfil" />
+      <Navbar variant="client" userName={userName} profileLink="/perfil" />
 
       <main className="mx-auto max-w-6xl responsive-page-padding pt-6 lg:px-8">
         <section className="rounded-[32px] bg-[var(--color-navy)] p-6 text-white shadow-[0_24px_80px_rgba(26,43,76,0.18)]">
           <div className="flex items-start justify-between gap-4">
             <div className="max-w-2xl">
               <p className="text-sm uppercase tracking-[0.24em] text-[var(--color-primary)]/90">Bem-vindo de volta</p>
-              <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">Olá, Cliente!</h1>
+              <h1 className="mt-3 text-4xl font-bold tracking-tight sm:text-5xl">Olá, {userName}!</h1>
               <p className="mt-4 max-w-xl text-base text-white/85">O que você quer fazer hoje? Busque profissionais, veja quem está disponível perto de você ou peça um orçamento rápido.</p>
             </div>
             <div className="hidden rounded-[32px] bg-white/10 p-4 text-center sm:block">
