@@ -69,11 +69,6 @@ const OnboardingPage = () => {
             </p>
 
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <Link to="/login">
-                <Button className="w-full sm:w-auto" variant="primary">
-                  Entrar / Cadastrar
-                </Button>
-              </Link>
               <Link to="/buscar">
                 <Button variant="secondary" className="w-full sm:w-auto">
                   Ver categorias
