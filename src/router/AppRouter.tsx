@@ -28,7 +28,8 @@ const AppRouter = () => {
         <Route path="/avaliar/:proposalId" element={<ReviewPage />} />
         <Route path="/perfil" element={<ClientProfilePage />} />
         <Route path="/prestador/home" element={<ProfessionalHomePage />} />
-        <Route path="/prestador/perfil" element={<ProfessionalProfileEditPage />} />
+        <Route path="/prestador/perfil" element={<ProfessionalProfilePage />} />
+        <Route path="/prestador/perfil/editar" element={<ProfessionalProfileEditPage />} />
         <Route path="/prestador/proposta/:proposalId" element={<ProposalPage />} />
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

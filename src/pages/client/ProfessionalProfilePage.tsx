@@ -7,25 +7,74 @@ import ReviewCard from '../../components/molecules/ReviewCard';
 import mockProfessionals from '../../constants/mockProfessionals';
 import mockReviews from '../../constants/mockReviews';
 
+const getAuthUser = () => {
+  try {
+    const raw = window.localStorage.getItem('resolveJaAuth');
+    if (!raw) return null;
+    return JSON.parse(raw) as {
+      profile: 'cliente' | 'prestador';
+      fullName: string;
+      uid?: string;
+      category?: string;
+      city?: string;
+      state?: string;
+      phone?: string;
+      email?: string;
+    };
+  } catch {
+    return null;
+  }
+};
+
 const ProfessionalProfilePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
+  const authUser = getAuthUser();
+  const profileId = id ?? authUser?.uid;
   const fromSearchState = location.state as
     | { fromSearch?: boolean; category?: string; query?: string }
     | undefined;
-  const professional = mockProfessionals.find((item) => item.uid === id) ?? mockProfessionals[0];
+  const professional = profileId ? mockProfessionals.find((item) => item.uid === profileId) : null;
+  const ownerFallbackProfessional =
+    !professional && authUser?.profile === 'prestador'
+      ? {
+          uid: authUser.uid ?? 'prestador-atual',
+          nome: authUser.fullName,
+          fotoUrl: '',
+          categorias: authUser.category ? [authUser.category] : ['Prestador'],
+          bio: 'Perfil do prestador cadastrado. Atualize seus serviços e disponibilidade.',
+          totalServicos: 0,
+          totalAvaliacoes: 0,
+          avaliacaoMedia: 0,
+          valorDiaria: 'Sob consulta',
+          bairrosAtendimento: authUser.city ? [authUser.city] : ['Localidade'],
+          disponibilidade: {
+            segunda: [],
+            terca: [],
+            quarta: [],
+            quinta: [],
+            sexta: [],
+            sabado: [],
+            domingo: [],
+          },
+          portfolio: [],
+          whatsapp: authUser.phone ?? '',
+        }
+      : null;
+  const selectedProfessional = professional ?? ownerFallbackProfessional ?? mockProfessionals[0];
+  const isOwner = authUser?.profile === 'prestador' && authUser?.uid === selectedProfessional.uid;
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportSent, setReportSent] = useState(false);
 
-  const heroImage = professional.portfolio[0] ?? professional.fotoUrl;
-  const portfolioItems = professional.portfolio ?? [];
-  const reviews = mockReviews.filter((review) => review.destinatarioId === professional.uid);
+  const heroImage = selectedProfessional.portfolio[0] ?? selectedProfessional.fotoUrl;
+  const portfolioItems = selectedProfessional.portfolio ?? [];
+  const reviews = mockReviews.filter((review) => review.destinatarioId === selectedProfessional.uid);
   const reviewItems = reviews.slice(0, 3);
-  const hasWhatsApp = Boolean(professional.whatsapp?.trim());
+  const hasWhatsApp = Boolean(selectedProfessional.whatsapp?.trim());
   const availabilityDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
 
   const getDayLabel = (day: typeof availabilityDays[number]) => {
@@ -46,6 +95,11 @@ const ProfessionalProfilePage = () => {
   };
 
   const handleBackToSearch = () => {
+    if (isOwner) {
+      navigate('/prestador/home');
+      return;
+    }
+
     if (fromSearchState?.fromSearch) {
       const basePath = fromSearchState.category
         ? `/buscar/${encodeURIComponent(fromSearchState.category)}`
@@ -76,30 +130,30 @@ const ProfessionalProfilePage = () => {
               <div className="relative h-72 overflow-hidden sm:h-96">
                 <img
                   src={heroImage}
-                  alt={`Portfólio de ${professional.nome}`}
+                  alt={`Portfólio de ${selectedProfessional.nome}`}
                   className="h-full w-full object-cover"
                 />
                 <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent p-6 text-white">
                   <div className="flex flex-wrap items-center gap-4">
                     <Avatar
-                      src={professional.fotoUrl}
-                      name={professional.nome}
+                      src={selectedProfessional.fotoUrl}
+                      name={selectedProfessional.nome}
                       size="lg"
                       className="border-4 border-white"
                     />
                     <div className="space-y-2">
-                      <p className="text-sm uppercase tracking-[0.24em] text-slate-200">{professional.categorias[0]} profissional</p>
-                      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{professional.nome}</h1>
+                      <p className="text-sm uppercase tracking-[0.24em] text-slate-200">{selectedProfessional.categorias[0]} profissional</p>
+                      <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{selectedProfessional.nome}</h1>
                       <div className="flex flex-wrap items-center gap-3 text-sm text-slate-100">
-                        <span>{professional.totalServicos} serviços</span>
+                        <span>{selectedProfessional.totalServicos} serviços</span>
                         <span>•</span>
-                        <span>{professional.bairrosAtendimento[0]}</span>
+                        <span>{selectedProfessional.bairrosAtendimento[0]}</span>
                       </div>
                     </div>
                   </div>
                 </div>
                 <div className="absolute left-4 top-4 rounded-3xl bg-slate-950/80 px-4 py-2 text-sm font-semibold text-white">
-                  ★ {professional.avaliacaoMedia}
+                  ★ {selectedProfessional.avaliacaoMedia}
                 </div>
               </div>
 
@@ -107,27 +161,27 @@ const ProfessionalProfilePage = () => {
                 <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-center">
                   <div>
                     <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Sobre</p>
-                    <p className="mt-3 text-base leading-7 text-slate-700">{professional.bio}</p>
+                    <p className="mt-3 text-base leading-7 text-slate-700">{selectedProfessional.bio}</p>
                   </div>
                   <div className="rounded-3xl bg-[var(--color-bg-light)] p-5 text-center">
                     <p className="text-sm text-slate-500">Média</p>
-                    <p className="mt-2 text-3xl font-semibold text-[var(--color-navy)]">{professional.avaliacaoMedia}</p>
-                    <p className="text-sm text-slate-600">({professional.totalAvaliacoes} avaliações)</p>
+                    <p className="mt-2 text-3xl font-semibold text-[var(--color-navy)]">{selectedProfessional.avaliacaoMedia}</p>
+                    <p className="text-sm text-slate-600">({selectedProfessional.totalAvaliacoes} avaliações)</p>
                   </div>
                 </div>
 
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                     <p className="text-sm text-slate-500">Serviços realizados</p>
-                    <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">{professional.totalServicos}</p>
+                    <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">{selectedProfessional.totalServicos}</p>
                   </div>
                   <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                     <p className="text-sm text-slate-500">Valor diário</p>
-                    <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">{professional.valorDiaria}</p>
+                    <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">{selectedProfessional.valorDiaria}</p>
                   </div>
                   <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                     <p className="text-sm text-slate-500">Atuação</p>
-                    <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">{professional.categorias.join(', ')}</p>
+                    <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">{selectedProfessional.categorias.join(', ')}</p>
                   </div>
                 </div>
               </div>
@@ -141,7 +195,7 @@ const ProfessionalProfilePage = () => {
 
               <div className="grid gap-3 sm:grid-cols-3">
                 {availabilityDays.map((day) => {
-                  const available = professional.disponibilidade[day]?.length > 0;
+                  const available = selectedProfessional.disponibilidade[day]?.length > 0;
                   return (
                     <div
                       key={day}
@@ -153,7 +207,7 @@ const ProfessionalProfilePage = () => {
                     >
                       <p className="text-sm font-semibold">{getDayLabel(day)}</p>
                       <p className="mt-2 text-xs">
-                        {available ? professional.disponibilidade[day].join(', ') : 'Indisponível'}
+                        {available ? selectedProfessional.disponibilidade[day].join(', ') : 'Indisponível'}
                       </p>
                     </div>
                   );
@@ -165,7 +219,7 @@ const ProfessionalProfilePage = () => {
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Portfólio</p>
-                  <p className="mt-2 text-base text-slate-600">Veja alguns trabalhos recentes realizados por {professional.nome}.</p>
+                  <p className="mt-2 text-base text-slate-600">Veja alguns trabalhos recentes realizados por {selectedProfessional.nome}.</p>
                 </div>
                 {portfolioItems.length > 0 ? <Button variant="secondary">Ver todos</Button> : null}
               </div>
@@ -221,7 +275,7 @@ const ProfessionalProfilePage = () => {
                   <div className="flex items-center justify-between text-sm text-slate-600">
                     <span>WhatsApp</span>
                     <span className="font-semibold text-[var(--color-navy)]">
-                      {hasWhatsApp ? professional.whatsapp : 'Não disponível'}
+                      {hasWhatsApp ? selectedProfessional.whatsapp : 'Não disponível'}
                     </span>
                   </div>
                   <div className="flex items-center justify-between text-sm text-slate-600">
@@ -231,21 +285,31 @@ const ProfessionalProfilePage = () => {
                 </div>
 
                 <div className="grid gap-3">
-                  <Link to={`/proposta/${professional.uid}`}>
-                    <Button variant="primary" className="w-full">
-                      Enviar proposta
-                    </Button>
-                  </Link>
-                  {hasWhatsApp ? (
-                    <a href={`https://wa.me/${professional.whatsapp}`} target="_blank" rel="noreferrer">
-                      <Button variant="secondary" className="w-full">
-                        Contatar no WhatsApp
+                  {isOwner ? (
+                    <Link to="/prestador/perfil/editar">
+                      <Button variant="primary" className="w-full">
+                        Editar perfil
                       </Button>
-                    </a>
+                    </Link>
                   ) : (
-                    <Button variant="secondary" className="w-full opacity-50" disabled>
-                      WhatsApp indisponível
-                    </Button>
+                    <>
+                      <Link to={`/proposta/${selectedProfessional.uid}`}>
+                        <Button variant="primary" className="w-full">
+                          Enviar proposta
+                        </Button>
+                      </Link>
+                      {hasWhatsApp ? (
+                        <a href={`https://wa.me/${selectedProfessional.whatsapp}`} target="_blank" rel="noreferrer">
+                          <Button variant="secondary" className="w-full">
+                            Contatar no WhatsApp
+                          </Button>
+                        </a>
+                      ) : (
+                        <Button variant="secondary" className="w-full opacity-50" disabled>
+                          WhatsApp indisponível
+                        </Button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>
@@ -262,7 +326,7 @@ const ProfessionalProfilePage = () => {
 
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Categoria</p>
-              <p className="mt-3 rounded-3xl bg-[var(--color-bg-light)] px-4 py-3 text-sm font-semibold text-[var(--color-navy)]">{professional.categorias.join(', ')}</p>
+              <p className="mt-3 rounded-3xl bg-[var(--color-bg-light)] px-4 py-3 text-sm font-semibold text-[var(--color-navy)]">{selectedProfessional.categorias.join(', ')}</p>
             </div>
           </aside>
         </div>

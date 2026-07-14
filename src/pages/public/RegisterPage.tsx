@@ -171,10 +171,19 @@ const RegisterPage = () => {
 
     try {
       await new Promise((resolve) => setTimeout(resolve, 800));
-      window.localStorage.setItem(
-        'resolveJaAuth',
-        JSON.stringify({ profile: selectedProfile, fullName: fields.fullName.trim() }),
-      );
+      const authRecord: Record<string, unknown> = {
+        profile: selectedProfile,
+        fullName: fields.fullName.trim(),
+      };
+      if (selectedProfile === 'prestador') {
+        authRecord.uid = `prof_${cleanNumeric(fields.phone)}`;
+        authRecord.category = fields.category;
+        authRecord.city = fields.city;
+        authRecord.state = fields.state;
+        authRecord.phone = fields.phone;
+        authRecord.email = fields.email;
+      }
+      window.localStorage.setItem('resolveJaAuth', JSON.stringify(authRecord));
       navigate(selectedProfile === 'prestador' ? '/prestador/home' : '/home');
     } catch {
       setServerError('Erro ao cadastrar. Verifique sua conexão.');

@@ -52,6 +52,11 @@ const HomePage = () => {
   const [locationError, setLocationError] = useState('');
   const userName = getUserName();
 
+  const handleLogout = () => {
+    window.localStorage.removeItem('resolveJaAuth');
+    navigate('/');
+  };
+
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
@@ -107,7 +112,7 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
-      <Navbar variant="client" userName={userName} profileLink="/perfil" />
+      <Navbar variant="client" userName={userName} profileLink="/perfil" onLogout={handleLogout} />
 
       <main className="mx-auto max-w-6xl responsive-page-padding pt-6 lg:px-8">
         <section className="rounded-[32px] bg-[var(--color-navy)] p-6 text-white shadow-[0_24px_80px_rgba(26,43,76,0.18)]">
@@ -251,7 +256,7 @@ const HomePage = () => {
                 to="/proposta/prof001"
                 className="mt-4 inline-flex w-full items-center justify-center rounded-[24px] bg-[var(--color-primary)] px-4 py-4 text-sm font-semibold text-[var(--color-navy)] shadow-sm"
               >
-                Solicitar orçado imediato
+                Solicitar orçamento imediato
               </Link>
             </div>
           </aside>
