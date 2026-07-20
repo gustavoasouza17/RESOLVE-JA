@@ -3,6 +3,8 @@ import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import categories from '../../constants/categories';
+import { registerWithEmail, translateError } from '../../services/auth';
+import type { AuthError } from 'firebase/auth';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\d{11}$/;
@@ -170,23 +172,23 @@ const RegisterPage = () => {
     setIsSubmitting(true);
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      const authRecord: Record<string, unknown> = {
-        profile: selectedProfile,
+      await registerWithEmail(fields.email.trim(), fields.password, {
         fullName: fields.fullName.trim(),
-      };
-      if (selectedProfile === 'prestador') {
-        authRecord.uid = `prof_${cleanNumeric(fields.phone)}`;
-        authRecord.category = fields.category;
-        authRecord.city = fields.city;
-        authRecord.state = fields.state;
-        authRecord.phone = fields.phone;
-        authRecord.email = fields.email;
-      }
-      window.localStorage.setItem('resolveJaAuth', JSON.stringify(authRecord));
+        phone: cleanNumeric(fields.phone),
+        cpf: cleanNumeric(fields.cpf),
+        profile: selectedProfile,
+        city: fields.city.trim() || undefined,
+        state: fields.state.trim() || undefined,
+        category: fields.category || undefined,
+      });
       navigate(selectedProfile === 'prestador' ? '/prestador/home' : '/home');
-    } catch {
-      setServerError('Erro ao cadastrar. Verifique sua conexão.');
+    } catch (err) {
+      const msg = err instanceof Error
+        ? (err as unknown as { code?: string }).code
+          ? translateError(err as unknown as AuthError)
+          : err.message
+        : 'Erro ao cadastrar. Verifique sua conexão.';
+      setServerError(msg);
     } finally {
       setIsSubmitting(false);
     }

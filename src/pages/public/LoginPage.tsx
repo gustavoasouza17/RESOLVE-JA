@@ -5,6 +5,8 @@ import Input from '../../components/atoms/Input';
 import StatsBanner from '../../components/molecules/StatsBanner';
 import mockProfessionals from '../../constants/mockProfessionals';
 import mockProposals from '../../constants/mockProposals';
+import { loginWithEmail, resetPassword, translateError } from '../../services/auth';
+import type { AuthError } from 'firebase/auth';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -49,27 +51,43 @@ const LoginPage = () => {
 
     setIsSubmitting(true);
 
-    // Simula chamada Firebase Auth
     try {
-      // TODO: substituir por Firebase Auth quando conectado
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      const nameFromEmail = email.split('@')[0].replace(/[._]/g, ' ');
-      window.localStorage.setItem('resolveJaAuth', JSON.stringify({ profile: 'cliente', fullName: nameFromEmail }));
-      navigate('/home');
-    } catch {
-      setServerError('Sem conexão. Tente novamente.');
+      const { profile } = await loginWithEmail(email.trim(), password);
+      const perfil = profile?.profile as 'cliente' | 'prestador' | undefined;
+      if (perfil === 'prestador') {
+        navigate('/prestador/home');
+      } else {
+        navigate('/home');
+      }
+    } catch (err) {
+      const msg = err instanceof Error
+        ? (err as unknown as { code?: string }).code
+          ? translateError(err as unknown as AuthError)
+          : err.message
+        : 'Erro desconhecido. Tente novamente.';
+      setServerError(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleForgotPassword = () => {
+  const handleForgotPassword = async () => {
     if (!email.trim()) {
       setErrors((prev) => ({ ...prev, email: 'Informe seu e-mail para recuperar a senha.' }));
       return;
     }
-    // TODO: integrar com Firebase Auth sendPasswordResetEmail
-    alert(`Link de redefinição enviado para ${email}`);
+    try {
+      await resetPassword(email.trim());
+      setServerError('');
+      alert('Link de redefinição enviado para o seu e-mail.');
+    } catch (err) {
+      const msg = err instanceof Error
+        ? (err as unknown as { code?: string }).code
+          ? translateError(err as unknown as AuthError)
+          : err.message
+        : 'Erro ao enviar e-mail de redefinição.';
+      setServerError(msg);
+    }
   };
 
   const averageRating = (

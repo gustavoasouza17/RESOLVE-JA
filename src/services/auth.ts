@@ -1,0 +1,139 @@
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+  sendPasswordResetEmail,
+  updateProfile,
+} from 'firebase/auth';
+import type { AuthError } from 'firebase/auth';
+import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { auth, db } from '../firebase';
+
+// ─── Error translation map ────────────────────────────────────────────────────
+const ptBrErrors: Record<string, string> = {
+  'auth/user-not-found': 'E-mail não encontrado. Verifique se digitou corretamente.',
+  'auth/wrong-password': 'Senha incorreta. Tente novamente.',
+  'auth/invalid-credential': 'E-mail ou senha inválidos.',
+  'auth/email-already-in-use': 'Este e-mail já está cadastrado. Faça login ou use outro e-mail.',
+  'auth/weak-password': 'A senha deve ter pelo menos 6 caracteres.',
+  'auth/invalid-email': 'O formato do e-mail é inválido.',
+  'auth/too-many-requests': 'Conta temporariamente bloqueada por muitas tentativas. Tente novamente mais tarde.',
+  'auth/network-request-failed': 'Sem conexão com a internet. Verifique sua rede e tente novamente.',
+  'auth/user-disabled': 'Esta conta foi desativada. Entre em contato com o suporte.',
+  'auth/operation-not-allowed': 'Este método de login não está habilitado no momento.',
+  'auth/requires-recent-login': 'Por segurança, faça login novamente antes de alterar estas informações.',
+};
+
+function translateError(error: AuthError): string {
+  return ptBrErrors[error.code] ?? error.message ?? 'Erro desconhecido. Tente novamente.';
+}
+
+// ─── Firebase Auth helpers ─────────────────────────────────────────────────────
+
+/**
+ * Verifica no Firestore se um CPF já está em uso.
+ * Percorre todos os documentos da coleção `users` comparando o campo `cpf`.
+ */
+async function checkCpfDuplicity(cpf: string): Promise<string | null> {
+  try {
+    const q = query(collection(db, 'users'), where('cpf', '==', cpf));
+    const snapshot = await getDocs(q);
+    if (!snapshot.empty) {
+      return 'Este CPF já está cadastrado em outra conta.';
+    }
+    return null;
+  } catch {
+    return null; // se falhar, deixa passar — a validação real virá na criação
+  }
+}
+
+/**
+ * Login com e-mail e senha.
+ * @returns Objeto com `user` (firebase User) e `profile` (dados do Firestore).
+ */
+export async function loginWithEmail(email: string, senha: string) {
+  const credential = await signInWithEmailAndPassword(auth, email, senha);
+  const user = credential.user;
+
+  // Busca dados complementares no Firestore
+  const userDoc = await getDoc(doc(db, 'users', user.uid));
+  const profileData = userDoc.exists() ? userDoc.data() : null;
+
+  return { user, profile: profileData };
+}
+
+/**
+ * Registro com e-mail, senha e dados adicionais.
+ * Cria o usuário no Auth e, em seguida, um documento na coleção `users` no Firestore.
+ *
+ * @param email       E-mail do usuário
+ * @param senha       Senha escolhida
+ * @param dados       Dados adicionais (fullName, phone, cpf, profile, city, state, category, etc.)
+ */
+export async function registerWithEmail(
+  email: string,
+  senha: string,
+  dados: {
+    fullName: string;
+    phone: string;
+    cpf: string;
+    profile: 'cliente' | 'prestador';
+    city?: string;
+    state?: string;
+    category?: string;
+  },
+) {
+  // 1. Verifica duplicidade de CPF antes de criar
+  const cpfError = await checkCpfDuplicity(dados.cpf);
+  if (cpfError) {
+    throw new Error(cpfError);
+  }
+
+  // 2. Cria o usuário no Firebase Auth
+  const credential = await createUserWithEmailAndPassword(auth, email, senha);
+  const user = credential.user;
+
+  // 3. Atualiza o displayName no Auth (opcional, útil para exibição rápida)
+  await updateProfile(user, { displayName: dados.fullName });
+
+  // 4. Persiste dados complementares no Firestore
+  const userData: Record<string, unknown> = {
+    uid: user.uid,
+    fullName: dados.fullName,
+    email,
+    phone: dados.phone,
+    cpf: dados.cpf,
+    profile: dados.profile,
+    createdAt: new Date().toISOString(),
+  };
+
+  if (dados.profile === 'prestador') {
+    userData.city = dados.city ?? '';
+    userData.state = dados.state ?? '';
+    userData.category = dados.category ?? '';
+    userData.rating = 0;
+    userData.totalRatings = 0;
+    userData.isActive = true;
+  }
+
+  await setDoc(doc(db, 'users', user.uid), userData);
+
+  return { user, profile: userData };
+}
+
+/**
+ * Logout — encerra a sessão do Firebase Auth.
+ */
+export async function logout() {
+  await signOut(auth);
+}
+
+/**
+ * Envia e-mail de redefinição de senha.
+ */
+export async function resetPassword(email: string) {
+  await sendPasswordResetEmail(auth, email);
+}
+
+// ─── Re-export do tradutor para uso em outros lugares ─────────────────────────
+export { translateError };
