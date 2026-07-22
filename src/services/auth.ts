@@ -4,28 +4,56 @@ import {
   signOut,
   sendPasswordResetEmail,
   updateProfile,
-} from 'firebase/auth';
-import type { AuthError } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
-import { auth, db } from '../firebase';
+} from "firebase/auth";
+import type { AuthError } from "firebase/auth";
+import {
+  doc,
+  setDoc,
+  getDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+} from "firebase/firestore";
+import { auth, db } from "../firebase";
 
 // ─── Error translation map ────────────────────────────────────────────────────
 const ptBrErrors: Record<string, string> = {
-  'auth/user-not-found': 'E-mail não encontrado. Verifique se digitou corretamente.',
-  'auth/wrong-password': 'Senha incorreta. Tente novamente.',
-  'auth/invalid-credential': 'E-mail ou senha inválidos.',
-  'auth/email-already-in-use': 'Este e-mail já está cadastrado. Faça login ou use outro e-mail.',
-  'auth/weak-password': 'A senha deve ter pelo menos 6 caracteres.',
-  'auth/invalid-email': 'O formato do e-mail é inválido.',
-  'auth/too-many-requests': 'Conta temporariamente bloqueada por muitas tentativas. Tente novamente mais tarde.',
-  'auth/network-request-failed': 'Sem conexão com a internet. Verifique sua rede e tente novamente.',
-  'auth/user-disabled': 'Esta conta foi desativada. Entre em contato com o suporte.',
-  'auth/operation-not-allowed': 'Este método de login não está habilitado no momento.',
-  'auth/requires-recent-login': 'Por segurança, faça login novamente antes de alterar estas informações.',
+  "permission-denied":
+    "Permissão insuficiente no Firestore. Verifique as Regras de Segurança (Rules) no Firebase Console.",
+  "auth/user-not-found":
+    "E-mail não encontrado. Verifique se digitou corretamente.",
+  "auth/wrong-password": "Senha incorreta. Tente novamente.",
+  "auth/invalid-credential": "E-mail ou senha inválidos.",
+  "auth/email-already-in-use":
+    "Este e-mail já está cadastrado. Faça login ou use outro e-mail.",
+  "auth/weak-password": "A senha deve ter pelo menos 6 caracteres.",
+  "auth/invalid-email": "O formato do e-mail é inválido.",
+  "auth/too-many-requests":
+    "Conta temporariamente bloqueada por muitas tentativas. Tente novamente mais tarde.",
+  "auth/network-request-failed":
+    "Sem conexão com a internet. Verifique sua rede e tente novamente.",
+  "auth/user-disabled":
+    "Esta conta foi desativada. Entre em contato com o suporte.",
+  "auth/operation-not-allowed":
+    "Este método de login não está habilitado no momento.",
+  "auth/requires-recent-login":
+    "Por segurança, faça login novamente antes de alterar estas informações.",
 };
 
-function translateError(error: AuthError): string {
-  return ptBrErrors[error.code] ?? error.message ?? 'Erro desconhecido. Tente novamente.';
+function translateError(
+  error: AuthError | { code?: string; message?: string },
+): string {
+  const code = error.code ?? "";
+  if (
+    code === "permission-denied" ||
+    error.message?.includes("Missing or insufficient permissions")
+  ) {
+    return "Permissão insuficiente no banco de dados (Firestore). Verifique as Regras de Segurança (Rules) no Firebase Console.";
+  }
+  return (
+    ptBrErrors[code] ?? error.message ?? "Erro desconhecido. Tente novamente."
+  );
 }
 
 // ─── Firebase Auth helpers ─────────────────────────────────────────────────────
@@ -36,10 +64,10 @@ function translateError(error: AuthError): string {
  */
 async function checkCpfDuplicity(cpf: string): Promise<string | null> {
   try {
-    const q = query(collection(db, 'users'), where('cpf', '==', cpf));
+    const q = query(collection(db, "users"), where("cpf", "==", cpf));
     const snapshot = await getDocs(q);
     if (!snapshot.empty) {
-      return 'Este CPF já está cadastrado em outra conta.';
+      return "Este CPF já está cadastrado em outra conta.";
     }
     return null;
   } catch {
@@ -56,8 +84,18 @@ export async function loginWithEmail(email: string, senha: string) {
   const user = credential.user;
 
   // Busca dados complementares no Firestore
-  const userDoc = await getDoc(doc(db, 'users', user.uid));
-  const profileData = userDoc.exists() ? userDoc.data() : null;
+  let profileData: Record<string, unknown> | null = null;
+  try {
+    const userDoc = await getDoc(doc(db, "users", user.uid));
+    profileData = userDoc.exists()
+      ? (userDoc.data() as Record<string, unknown>)
+      : null;
+  } catch (error) {
+    console.warn(
+      "Não foi possível carregar o perfil do Firestore (permissão ou erro de rede):",
+      error,
+    );
+  }
 
   return { user, profile: profileData };
 }
@@ -77,7 +115,7 @@ export async function registerWithEmail(
     fullName: string;
     phone: string;
     cpf: string;
-    profile: 'cliente' | 'prestador';
+    profile: "cliente" | "prestador";
     city?: string;
     state?: string;
     category?: string;
@@ -107,16 +145,16 @@ export async function registerWithEmail(
     createdAt: new Date().toISOString(),
   };
 
-  if (dados.profile === 'prestador') {
-    userData.city = dados.city ?? '';
-    userData.state = dados.state ?? '';
-    userData.category = dados.category ?? '';
+  if (dados.profile === "prestador") {
+    userData.city = dados.city ?? "";
+    userData.state = dados.state ?? "";
+    userData.category = dados.category ?? "";
     userData.rating = 0;
     userData.totalRatings = 0;
     userData.isActive = true;
   }
 
-  await setDoc(doc(db, 'users', user.uid), userData);
+  await setDoc(doc(db, "users", user.uid), userData);
 
   return { user, profile: userData };
 }
