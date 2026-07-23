@@ -151,12 +151,29 @@ const RegisterPage = () => {
     setIsSubmitting(true);
 
     try {
-      await registerWithEmail(fields.email.trim(), fields.password, {
+      const { user, profile } = await registerWithEmail(fields.email.trim(), fields.password, {
         nome: fields.fullName.trim(),
         telefone: cleanNumeric(fields.phone),
         cpf: cleanNumeric(fields.cpf),
         perfil: selectedProfile,
       });
+
+      // Salva dados do usuário no localStorage
+      if (profile) {
+        window.localStorage.setItem(
+          'resolveJaAuth',
+          JSON.stringify({
+            uid: profile.uid || user.uid,
+            fullName: profile.nome || user.displayName || fields.fullName.trim(),
+            email: profile.email || fields.email.trim(),
+            phone: profile.telefone || '',
+            profile: profile.perfil || selectedProfile,
+            category: profile.categoria || '',
+            city: profile.cidade || '',
+          }),
+        );
+      }
+
       navigate(selectedProfile === 'prestador' ? '/prestador/home' : '/home');
     } catch (err) {
       const msg = err instanceof Error

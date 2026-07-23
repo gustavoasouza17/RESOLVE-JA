@@ -10,14 +10,20 @@ type NavbarProps = {
   onLogout?: () => void;
 };
 
+const getFirstName = (fullName: string): string => {
+  if (!fullName) return 'Usuário';
+  return fullName.split(' ')[0];
+};
+
 const getUserFromStorage = () => {
   try {
     const raw = window.localStorage.getItem('resolveJaAuth');
-    if (!raw) return { fullName: 'Usuário', profile: null };
+    if (!raw) return { fullName: 'Usuário', firstName: 'Usuário', profile: null };
     const parsed = JSON.parse(raw);
-    return { fullName: parsed.fullName || 'Usuário', profile: parsed.profile || null };
+    const fullName = parsed.fullName || 'Usuário';
+    return { fullName, firstName: getFirstName(fullName), profile: parsed.profile || null };
   } catch {
-    return { fullName: 'Usuário', profile: null };
+    return { fullName: 'Usuário', firstName: 'Usuário', profile: null };
   }
 };
 
@@ -30,7 +36,7 @@ const Navbar = ({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const stored = getUserFromStorage();
-  const displayName = userName || stored.fullName;
+  const displayName = userName || stored.firstName;
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

@@ -52,8 +52,25 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
-      const { profile } = await loginWithEmail(email.trim(), password);
+      const { user, profile } = await loginWithEmail(email.trim(), password);
       const perfil = profile?.perfil as 'cliente' | 'prestador' | undefined;
+
+      // Salva dados do usuário no localStorage
+      if (profile) {
+        window.localStorage.setItem(
+          'resolveJaAuth',
+          JSON.stringify({
+            uid: profile.uid || user.uid,
+            fullName: profile.nome || user.displayName || '',
+            email: profile.email || email.trim(),
+            phone: profile.telefone || '',
+            profile: profile.perfil || '',
+            category: profile.categoria || '',
+            city: profile.cidade || '',
+          }),
+        );
+      }
+
       if (perfil === 'prestador') {
         navigate('/prestador/home');
       } else {
