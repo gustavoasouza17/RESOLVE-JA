@@ -97,28 +97,32 @@ export async function loginWithEmail(email: string, senha: string) {
     );
   }
 
+  // Verifica se a conta está suspensa
+  if (profileData?.status === "suspended") {
+    await signOut(auth);
+    throw new Error("Conta suspensa. Entre em contato com o suporte.");
+  }
+
   return { user, profile: profileData };
 }
 
 /**
  * Registro com e-mail, senha e dados adicionais.
  * Cria o usuário no Auth e, em seguida, um documento na coleção `users` no Firestore.
+ * Se o perfil for "prestador", cria também um documento separado na coleção `professionals`.
  *
  * @param email       E-mail do usuário
  * @param senha       Senha escolhida
- * @param dados       Dados adicionais (fullName, phone, cpf, profile, city, state, category, etc.)
+ * @param dados       Dados adicionais (nome, telefone, cpf, perfil)
  */
 export async function registerWithEmail(
   email: string,
   senha: string,
   dados: {
-    fullName: string;
-    phone: string;
+    nome: string;
+    telefone: string;
     cpf: string;
-    profile: "cliente" | "prestador";
-    city?: string;
-    state?: string;
-    category?: string;
+    perfil: "cliente" | "prestador";
   },
 ) {
   // 1. Verifica duplicidade de CPF antes de criar
@@ -132,29 +136,49 @@ export async function registerWithEmail(
   const user = credential.user;
 
   // 3. Atualiza o displayName no Auth (opcional, útil para exibição rápida)
-  await updateProfile(user, { displayName: dados.fullName });
+  await updateProfile(user, { displayName: dados.nome });
 
-  // 4. Persiste dados complementares no Firestore
+  // 4. Persiste dados do usuário no Firestore (coleção `users`) — campos em português
   const userData: Record<string, unknown> = {
     uid: user.uid,
-    fullName: dados.fullName,
+    nome: dados.nome,
     email,
-    phone: dados.phone,
+    telefone: dados.telefone,
     cpf: dados.cpf,
-    profile: dados.profile,
-    createdAt: new Date().toISOString(),
+    perfil: dados.perfil,
+    fotoUrl: "",
+    cidade: "",
+    status: "ativo",
+    criadoEm: new Date().toISOString(),
   };
 
-  if (dados.profile === "prestador") {
-    userData.city = dados.city ?? "";
-    userData.state = dados.state ?? "";
-    userData.category = dados.category ?? "";
-    userData.rating = 0;
-    userData.totalRatings = 0;
-    userData.isActive = true;
-  }
-
   await setDoc(doc(db, "users", user.uid), userData);
+
+  // 5. Se for prestador, cria documento SEPARADO na coleção `professionals`
+  if (dados.perfil === "prestador") {
+    const professionalData: Record<string, unknown> = {
+      uid: user.uid,
+      userId: user.uid,
+      nome: dados.nome,
+      bio: "",
+      fotoUrl: "",
+      whatsapp: "",
+      categorias: [],
+      bairrosAtendimento: [],
+      portfolio: [],
+      disponibilidade: {},
+      totalServicos: 0,
+      distanciaKm: 0,
+      avaliacaoMedia: 0,
+      totalAvaliacoes: 0,
+      valorDiaria: "",
+      plano: "free",
+      status: "ativo",
+      criadoEm: new Date().toISOString(),
+    };
+
+    await setDoc(doc(db, "professionals", user.uid), professionalData);
+  }
 
   return { user, profile: userData };
 }

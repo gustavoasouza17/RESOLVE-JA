@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
-import categories from '../../constants/categories';
 import { registerWithEmail, translateError } from '../../services/auth';
 import type { AuthError } from 'firebase/auth';
 
@@ -13,7 +12,7 @@ const cleanNumeric = (value: string) => value.replace(/\D/g, '');
 
 const isValidCPF = (cpf: string): boolean => {
   const cleaned = cleanNumeric(cpf);
-  if (!PHONE_REGEX.test(cleaned)) return false;
+  if (cleaned.length !== 11) return false;
   if (/^(\d)\1+$/.test(cleaned)) return false;
 
   const calcDigit = (digits: string) => {
@@ -39,9 +38,6 @@ type FormFields = {
   cpf: string;
   password: string;
   confirmPassword: string;
-  city: string;
-  state: string;
-  category: string;
   terms: boolean;
 };
 
@@ -77,16 +73,11 @@ const RegisterPage = () => {
     cpf: '',
     password: '',
     confirmPassword: '',
-    city: '',
-    state: '',
-    category: '',
     terms: false,
   });
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
-
-  const categoryOptions = categories.filter((category) => category.ativa);
 
   const handleField = (name: keyof FormFields, value: string | boolean) => {
     setFields((prev) => ({ ...prev, [name]: value }));
@@ -138,18 +129,6 @@ const RegisterPage = () => {
       next.confirmPassword = 'Senhas não coincidem.';
     }
 
-    if (selectedProfile === 'prestador') {
-      if (!fields.city.trim()) {
-        next.city = 'Cidade é obrigatória.';
-      }
-      if (!fields.state.trim()) {
-        next.state = 'Estado é obrigatório.';
-      }
-      if (!fields.category.trim()) {
-        next.category = 'Selecione sua especialidade.';
-      }
-    }
-
     if (!fields.terms) {
       next.terms = 'Você precisa aceitar os termos.';
     }
@@ -173,13 +152,10 @@ const RegisterPage = () => {
 
     try {
       await registerWithEmail(fields.email.trim(), fields.password, {
-        fullName: fields.fullName.trim(),
-        phone: cleanNumeric(fields.phone),
+        nome: fields.fullName.trim(),
+        telefone: cleanNumeric(fields.phone),
         cpf: cleanNumeric(fields.cpf),
-        profile: selectedProfile,
-        city: fields.city.trim() || undefined,
-        state: fields.state.trim() || undefined,
-        category: fields.category || undefined,
+        perfil: selectedProfile,
       });
       navigate(selectedProfile === 'prestador' ? '/prestador/home' : '/home');
     } catch (err) {
@@ -329,61 +305,6 @@ const RegisterPage = () => {
                     error={errors.confirmPassword}
                   />
                 </div>
-
-                {selectedProfile === 'prestador' ? (
-                  <>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <Input
-                        label="Cidade"
-                        name="city"
-                        placeholder="Sua cidade"
-                        value={fields.city}
-                        onChange={(e) => handleField('city', e.target.value)}
-                        error={errors.city}
-                      />
-                      <div className="space-y-2">
-                        <label htmlFor="state" className="block text-sm font-semibold text-slate-900">Estado</label>
-                        <select
-                          id="state"
-                          name="state"
-                          value={fields.state}
-                          onChange={(e) => handleField('state', e.target.value)}
-                          className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200 ${
-                            errors.state ? 'border-rose-500' : 'border-slate-200'
-                          }`}
-                        >
-                          <option value="">UF</option>
-                          <option value="SP">SP</option>
-                          <option value="RJ">RJ</option>
-                          <option value="MG">MG</option>
-                          <option value="PR">PR</option>
-                          <option value="BA">BA</option>
-                        </select>
-                        {errors.state ? <p className="text-xs text-rose-600">{errors.state}</p> : null}
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label htmlFor="category" className="block text-sm font-semibold text-slate-900">Categoria de serviço principal</label>
-                      <select
-                        id="category"
-                        name="category"
-                        value={fields.category}
-                        onChange={(e) => handleField('category', e.target.value)}
-                        className={`w-full rounded-2xl border px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200 ${
-                          errors.category ? 'border-rose-500' : 'border-slate-200'
-                        }`}
-                      >
-                        <option value="">Selecione sua especialidade</option>
-                        {categoryOptions.map((category) => (
-                          <option key={category.id} value={category.nome}>
-                            {category.nome}
-                          </option>
-                        ))}
-                      </select>
-                      {errors.category ? <p className="text-xs text-rose-600">{errors.category}</p> : null}
-                    </div>
-                  </>
-                ) : null}
 
                 <div className="flex items-start gap-3">
                   <input

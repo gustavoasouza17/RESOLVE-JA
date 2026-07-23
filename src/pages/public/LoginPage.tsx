@@ -53,7 +53,7 @@ const LoginPage = () => {
 
     try {
       const { profile } = await loginWithEmail(email.trim(), password);
-      const perfil = profile?.profile as 'cliente' | 'prestador' | undefined;
+      const perfil = profile?.perfil as 'cliente' | 'prestador' | undefined;
       if (perfil === 'prestador') {
         navigate('/prestador/home');
       } else {
