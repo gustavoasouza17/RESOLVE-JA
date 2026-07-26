@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import Navbar from '../../components/organisms/Navbar';
+import BottomNav from '../../components/organisms/BottomNav';
 import MapView from '../../components/organisms/MapView';
 import CategoryCard from '../../components/molecules/CategoryCard';
 import ProfessionalCard from '../../components/molecules/ProfessionalCard';
@@ -112,7 +112,7 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
-      <Navbar variant="client" userName={userName} profileLink="/perfil" onLogout={handleLogout} />
+      <BottomNav variant="client" />
 
       <main className="mx-auto max-w-6xl responsive-page-padding pt-6 lg:px-8">
         <section className="rounded-[32px] bg-[var(--color-navy)] p-6 text-white shadow-[0_24px_80px_rgba(26,43,76,0.18)]">

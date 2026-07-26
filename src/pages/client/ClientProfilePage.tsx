@@ -1,6 +1,7 @@
 import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
 import StarRating from '../../components/atoms/StarRating';
+import BottomNav from '../../components/organisms/BottomNav';
 import mockProposals from '../../constants/mockProposals';
 import mockReviews from '../../constants/mockReviews';
 
@@ -39,7 +40,8 @@ const ClientProfilePage = () => {
   }));
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
+    <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
+      <BottomNav variant="client" />
       <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 lg:px-8">
         <div className="grid gap-10 lg:grid-cols-[1.4fr_0.8fr]">
           <section className="space-y-8">

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
+import BottomNav from '../../components/organisms/BottomNav';
 import categories from '../../constants/categories';
 
 type DayKey = 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado' | 'domingo';
@@ -229,7 +230,8 @@ const ProfessionalProfileEditPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
+    <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
+      <BottomNav variant="professional" />
       <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 lg:px-8">
         <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200">
           <div className="space-y-4">

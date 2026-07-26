@@ -5,6 +5,7 @@ import {
   useSearchParams,
   useNavigate,
 } from "react-router-dom";
+import BottomNav from "../../components/organisms/BottomNav";
 import MapView from "../../components/organisms/MapView";
 import Button from "../../components/atoms/Button";
 import StarRating from "../../components/atoms/StarRating";
@@ -138,7 +139,8 @@ const SearchPage = () => {
   });
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
+    <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
+      <BottomNav variant="client" />
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 lg:px-8">
         <div className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
