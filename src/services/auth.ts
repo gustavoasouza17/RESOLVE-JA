@@ -123,6 +123,7 @@ export async function registerWithEmail(
     telefone: string;
     cpf: string;
     perfil: "cliente" | "prestador";
+    categorias?: string[];
   },
 ) {
   // 1. Verifica duplicidade de CPF antes de criar
@@ -163,7 +164,7 @@ export async function registerWithEmail(
       bio: "",
       fotoUrl: "",
       whatsapp: "",
-      categorias: [],
+      categorias: dados.categorias || [],
       bairrosAtendimento: [],
       portfolio: [],
       disponibilidade: {},

@@ -4,9 +4,21 @@ import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import { registerWithEmail, translateError } from '../../services/auth';
 import type { AuthError } from 'firebase/auth';
+import categories from '../../constants/categories';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\d{11}$/;
+
+const iconMap: Record<string, string> = {
+  hammer: '🧱',
+  droplet: '🚿',
+  bolt: '💡',
+  wood: '🪚',
+  palette: '🎨',
+  leaf: '🌿',
+  wrench: '🔧',
+  snowflake: '❄️',
+};
 
 const cleanNumeric = (value: string) => value.replace(/\D/g, '');
 
@@ -43,6 +55,8 @@ type FormFields = {
 
 type FormErrors = {
   [K in keyof FormFields]?: string;
+} & {
+  categories?: string;
 };
 
 const profileCards = [
@@ -75,6 +89,7 @@ const RegisterPage = () => {
     confirmPassword: '',
     terms: false,
   });
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
@@ -133,6 +148,10 @@ const RegisterPage = () => {
       next.terms = 'Você precisa aceitar os termos.';
     }
 
+    if (selectedProfile === 'prestador' && selectedCategories.length === 0) {
+      next.categories = 'Selecione ao menos 1 categoria de serviço.';
+    }
+
     setErrors(next);
     return Object.keys(next).length === 0;
   };
@@ -156,6 +175,7 @@ const RegisterPage = () => {
         telefone: cleanNumeric(fields.phone),
         cpf: cleanNumeric(fields.cpf),
         perfil: selectedProfile,
+        categorias: selectedCategories,
       });
 
       // Salva dados do usuário no localStorage
@@ -168,7 +188,7 @@ const RegisterPage = () => {
             email: profile.email || fields.email.trim(),
             phone: profile.telefone || '',
             profile: profile.perfil || selectedProfile,
-            category: profile.categoria || '',
+            category: selectedCategories[0] || '',
             city: profile.cidade || '',
           }),
         );
@@ -215,6 +235,14 @@ const RegisterPage = () => {
                     onClick={() => {
                       setSelectedProfile(profile.key);
                       setServerError('');
+                      if (profile.key === 'cliente') {
+                        setSelectedCategories([]);
+                        setErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.categories;
+                          return next;
+                        });
+                      }
                     }}
                     className={`flex min-h-[220px] flex-col gap-4 rounded-[28px] border p-6 text-left transition ${
                       active
@@ -322,6 +350,58 @@ const RegisterPage = () => {
                     error={errors.confirmPassword}
                   />
                 </div>
+
+                {selectedProfile === 'prestador' && (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-semibold text-slate-900">
+                        Categorias de serviço
+                      </label>
+                      <span className="text-xs text-slate-500">Selecione ao menos 1</span>
+                    </div>
+                    <div className="grid gap-2.5 sm:grid-cols-2">
+                      {categories
+                        .filter((category) => category.ativa)
+                        .map((category) => {
+                          const active = selectedCategories.includes(category.nome);
+                          return (
+                            <button
+                              key={category.id}
+                              type="button"
+                              onClick={() => {
+                                setSelectedCategories((current) =>
+                                  current.includes(category.nome)
+                                    ? current.filter((item) => item !== category.nome)
+                                    : [...current, category.nome]
+                                );
+                                if (errors.categories) {
+                                  setErrors((prev) => {
+                                    const next = { ...prev };
+                                    delete next.categories;
+                                    return next;
+                                  });
+                                }
+                              }}
+                              className={`flex items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] ${
+                                active
+                                  ? 'border-[var(--color-primary)] bg-[var(--color-primary)]/10 text-[var(--color-navy)] ring-1 ring-[var(--color-primary)]'
+                                  : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                              }`}
+                              aria-pressed={active}
+                            >
+                              <span className="text-xl" role="img" aria-label={category.nome}>
+                                {iconMap[category.icone] ?? '🔧'}
+                              </span>
+                              <span className="font-semibold text-slate-800">{category.nome}</span>
+                            </button>
+                          );
+                        })}
+                    </div>
+                    {errors.categories ? (
+                      <p className="text-xs text-rose-600 font-medium">{errors.categories}</p>
+                    ) : null}
+                  </div>
+                )}
 
                 <div className="flex items-start gap-3">
                   <input

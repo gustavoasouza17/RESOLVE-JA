@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../../firebase';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
@@ -35,6 +37,33 @@ const ProfessionalProfilePage = () => {
   const fromSearchState = location.state as
     | { fromSearch?: boolean; category?: string; query?: string }
     | undefined;
+
+  const [dbProfessional, setDbProfessional] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!profileId) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchProfile = async () => {
+      try {
+        const profRef = doc(db, 'professionals', profileId);
+        const snap = await getDoc(profRef);
+        if (snap.exists()) {
+          setDbProfessional(snap.data());
+        }
+      } catch (error) {
+        console.error('Erro ao buscar perfil do Firestore:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProfile();
+  }, [profileId]);
+
   const professional = profileId ? mockProfessionals.find((item) => item.uid === profileId) : null;
   const ownerFallbackProfessional =
     !professional && authUser?.profile === 'prestador'
@@ -62,7 +91,8 @@ const ProfessionalProfilePage = () => {
           whatsapp: authUser.phone ?? '',
         }
       : null;
-  const selectedProfessional = professional ?? ownerFallbackProfessional ?? mockProfessionals[0];
+
+  const selectedProfessional = dbProfessional ?? professional ?? ownerFallbackProfessional ?? mockProfessionals[0];
   const isOwner = authUser?.profile === 'prestador' && authUser?.uid === selectedProfessional.uid;
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
@@ -114,6 +144,14 @@ const ProfessionalProfilePage = () => {
 
     navigate('/buscar');
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg-light)]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">

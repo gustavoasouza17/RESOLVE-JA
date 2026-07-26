@@ -1,4 +1,4 @@
-npm /**
+/**
  * Script para testar login dos usuários no Firebase Authentication
  * Usa a REST API do Firebase (Identity Toolkit) — não requer SDK extra.
  *

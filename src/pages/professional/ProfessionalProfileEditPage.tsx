@@ -271,9 +271,8 @@ const ProfessionalProfileEditPage = () => {
                   onChange={(event) => setBio(event.target.value)}
                   maxLength={300}
                   rows={5}
-                  className={`mt-3 w-full rounded-3xl border px-4 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200 ${
-                    errors.bio ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-200'
-                  }`}
+                  className={`mt-3 w-full rounded-3xl border px-4 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200 ${errors.bio ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-200'
+                    }`}
                   placeholder="Fale sobre sua experiência, especialidades e tipo de serviço oferecido."
                   aria-invalid={Boolean(errors.bio)}
                   aria-describedby={errors.bio ? 'bio-error' : 'bio-helptext'}
@@ -307,11 +306,10 @@ const ProfessionalProfileEditPage = () => {
                           key={category.id}
                           type="button"
                           onClick={() => handleToggleCategory(category.nome)}
-                          className={`rounded-3xl border px-4 py-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] ${
-                            active
+                          className={`rounded-3xl border px-4 py-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] ${active
                               ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)] text-[var(--color-navy)]'
                               : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                          }`}
+                            }`}
                           aria-pressed={active}
                         >
                           <div className="font-semibold">{category.nome}</div>
@@ -448,11 +446,10 @@ const ProfessionalProfileEditPage = () => {
                             key={shift.key}
                             type="button"
                             onClick={() => handleToggleAvailability(day.key, shift.key)}
-                            className={`rounded-2xl border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] ${
-                              active
+                            className={`rounded-2xl border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] ${active
                                 ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)] text-[var(--color-navy)]'
                                 : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                            }`}
+                              }`}
                             aria-pressed={active}
                           >
                             {shift.label}
