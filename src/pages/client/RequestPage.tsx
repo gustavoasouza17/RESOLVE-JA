@@ -78,7 +78,7 @@ const RequestPage = () => {
               onClick={() => navigate('/home')}
               className="block w-full rounded-3xl bg-[var(--color-primary)]/10 px-5 py-4 text-sm font-semibold text-[var(--color-navy)] hover:bg-[var(--color-primary)]/15"
             >
-              Voltar ao perfil do profissional
+              Voltar ao início
             </button>
           </aside>
         </div>
