@@ -1,6 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { useState, useEffect } from 'react';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
@@ -9,7 +8,6 @@ import BottomNav from '../../components/organisms/BottomNav';
 import mockProposals from '../../constants/mockProposals';
 import mockReviews from '../../constants/mockReviews';
 import { auth, db } from '../../firebase';
-import app from '../../firebase';
 
 const getUserName = () => {
   try {
@@ -27,65 +25,71 @@ const ClientProfilePage = () => {
   const [editName, setEditName] = useState(getUserName());
   const [editCity, setEditCity] = useState('São Paulo, SP');
   const [editPhotoUrl, setEditPhotoUrl] = useState('');
+  const [originalPhotoUrl, setOriginalPhotoUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Load profile data from Firestore on mount / on auth change
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
+      if (user) {
+        try {
+          const snap = await getDoc(doc(db, 'usuarios', user.uid));
+          if (snap.exists()) {
+            const data = snap.data() as Record<string, string | undefined>;
+            const fotoUrl = data.fotoUrl ?? '';
+            setEditPhotoUrl(fotoUrl);
+            setOriginalPhotoUrl(fotoUrl);
+            if (data.fullName) {
+              setEditName(data.fullName);
+            }
+            if (data.cidade) {
+              setEditCity(data.cidade);
+            }
+          }
+        } catch (err) {
+          console.error('Erro ao carregar perfil do Firestore:', err);
+        }
+      }
     });
     return unsubscribe;
   }, []);
 
   const userName = isEditing ? editName : getUserName();
   const userCity = 'São Paulo, SP';
-  
-  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    setUploadingPhoto(true);
-    try {
-      const storage = getStorage(app);
-      const user = auth.currentUser;
-      if (!user) return;
-
-      const storageRef = ref(storage, `fotos/${user.uid}/${file.name}`);
-      await uploadBytes(storageRef, file);
-      const downloadUrl = await getDownloadURL(storageRef);
-      setEditPhotoUrl(downloadUrl);
-    } catch (error) {
-      console.error('Erro ao fazer upload da foto:', error);
-    } finally {
-      setUploadingPhoto(false);
-    }
-  };
 
   const handleSave = async () => {
     setSaving(true);
+    setErrorMessage('');
+    setSuccessMessage('');
     try {
       // Always update localStorage first (works even without Firestore)
       const raw = window.localStorage.getItem('resolveJaAuth');
       if (raw) {
         const parsed = JSON.parse(raw);
         parsed.fullName = editName;
+        if (editPhotoUrl) parsed.fotoUrl = editPhotoUrl;
         window.localStorage.setItem('resolveJaAuth', JSON.stringify(parsed));
       }
 
-      // Try to save to Firestore if user is authenticated
+      // Save to Firestore if user is authenticated
       if (firebaseUser) {
-        await updateDoc(doc(db, 'usuarios', firebaseUser.uid), {
+        const updateData: Record<string, string> = {
           fullName: editName,
           cidade: editCity,
           fotoUrl: editPhotoUrl,
-        });
+        };
+        await updateDoc(doc(db, 'usuarios', firebaseUser.uid), updateData);
       }
 
-      window.location.reload();
+      setIsEditing(false);
+      setSaving(false);
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
+      setErrorMessage('Erro ao salvar perfil. Verifique sua conexão e tente novamente.');
       setSaving(false);
     }
   };
@@ -93,9 +97,12 @@ const ClientProfilePage = () => {
   const handleCancel = () => {
     setEditName(getUserName());
     setEditCity('São Paulo, SP');
-    setEditPhotoUrl('');
+    setEditPhotoUrl(originalPhotoUrl ?? '');
+    setErrorMessage('');
+    setSuccessMessage('');
     setIsEditing(false);
   };
+
   const historyItems = mockProposals
     .filter((proposal) => proposal.clienteId === 'client001')
     .slice(0, 3)
@@ -141,17 +148,15 @@ const ClientProfilePage = () => {
                         />
                       </div>
                       <div>
-                        <label htmlFor="editPhoto" className="block text-xs font-semibold text-slate-500 mb-1">Foto de perfil</label>
+                        <label htmlFor="editPhoto" className="block text-xs font-semibold text-slate-500 mb-1">Foto de perfil (URL — opcional)</label>
                         <input
-                          ref={fileInputRef}
                           id="editPhoto"
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoUpload}
-                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-800 outline-none transition file:mr-3 file:rounded-full file:border-0 file:bg-[var(--color-primary)]/10 file:px-4 file:py-1.5 file:text-sm file:font-semibold file:text-[var(--color-navy)] hover:file:bg-[var(--color-primary)]/20 focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
+                          type="text"
+                          value={editPhotoUrl}
+                          onChange={(e) => setEditPhotoUrl(e.target.value)}
+                          placeholder="Cole a URL da sua foto"
+                          className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-2 text-sm text-slate-800 outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200"
                         />
-                        {uploadingPhoto && <p className="mt-1 text-xs text-slate-500">Enviando foto...</p>}
-                        {editPhotoUrl && !uploadingPhoto && <p className="mt-1 text-xs text-green-600">✓ Foto carregada</p>}
                       </div>
                       <div>
                         <label htmlFor="editCity" className="block text-xs font-semibold text-slate-500 mb-1">Cidade</label>
