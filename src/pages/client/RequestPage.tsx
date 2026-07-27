@@ -1,10 +1,11 @@
-import { Link, useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import mockProfessionals from '../../constants/mockProfessionals';
 
 const RequestPage = () => {
   const { profissionalId } = useParams();
+  const navigate = useNavigate();
   const professional = mockProfessionals.find((p) => p.uid === profissionalId) ?? mockProfessionals[0];
 
   return (
@@ -73,12 +74,12 @@ const RequestPage = () => {
               <p className="mt-3 text-sm leading-6 text-slate-700">Descreva o máximo possível. Detalhes sobre local, prazo e materiais ajudam o prestador a entregar um orçamento mais preciso.</p>
             </div>
 
-            <Link
-              to={`/profissional/${professional.uid}`}
-              className="block rounded-3xl bg-[var(--color-primary)]/10 px-5 py-4 text-sm font-semibold text-[var(--color-navy)] hover:bg-[var(--color-primary)]/15"
+            <button
+              onClick={() => navigate('/home')}
+              className="block w-full rounded-3xl bg-[var(--color-primary)]/10 px-5 py-4 text-sm font-semibold text-[var(--color-navy)] hover:bg-[var(--color-primary)]/15"
             >
               Voltar ao perfil do profissional
-            </Link>
+            </button>
           </aside>
         </div>
       </div>
