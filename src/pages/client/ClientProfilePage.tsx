@@ -20,35 +20,50 @@ const getUserName = () => {
   }
 };
 
+interface ProfileData {
+  name: string;
+  city: string;
+  photoUrl: string;
+}
+
 const ClientProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState(getUserName());
-  const [editCity, setEditCity] = useState('São Paulo, SP');
-  const [editPhotoUrl, setEditPhotoUrl] = useState('');
-  const [originalPhotoUrl, setOriginalPhotoUrl] = useState<string | null>(null);
+
+  // Fonte única de verdade para o que é exibido na tela (fora do modo edição)
+  const [profileData, setProfileData] = useState<ProfileData>({
+    name: getUserName(),
+    city: 'São Paulo, SP',
+    photoUrl: '',
+  });
+
+  // Campos do formulário de edição (só usados enquanto isEditing = true)
+  const [editName, setEditName] = useState(profileData.name);
+  const [editCity, setEditCity] = useState(profileData.city);
+  const [editPhotoUrl, setEditPhotoUrl] = useState(profileData.photoUrl);
+
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
 
-  // Load profile data from Firestore on mount / on auth change
+  // Carrega os dados do Firestore ao montar / quando o auth muda
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setFirebaseUser(user);
       if (user) {
         try {
-          const snap = await getDoc(doc(db, 'usuarios', user.uid));
+          const snap = await getDoc(doc(db, 'users', user.uid));
           if (snap.exists()) {
             const data = snap.data() as Record<string, string | undefined>;
-            const fotoUrl = data.fotoUrl ?? '';
-            setEditPhotoUrl(fotoUrl);
-            setOriginalPhotoUrl(fotoUrl);
-            if (data.fullName) {
-              setEditName(data.fullName);
-            }
-            if (data.cidade) {
-              setEditCity(data.cidade);
-            }
+            const loaded: ProfileData = {
+              name: data.nome ?? getUserName(),
+              city: data.cidade ?? 'São Paulo, SP',
+              photoUrl: data.fotoUrl ?? '',
+            };
+            setProfileData(loaded);
+            setEditName(loaded.name);
+            setEditCity(loaded.city);
+            setEditPhotoUrl(loaded.photoUrl);
           }
         } catch (err) {
           console.error('Erro ao carregar perfil do Firestore:', err);
@@ -58,15 +73,21 @@ const ClientProfilePage = () => {
     return unsubscribe;
   }, []);
 
-  const userName = isEditing ? editName : getUserName();
-  const userCity = 'São Paulo, SP';
+  const handleStartEditing = () => {
+    setEditName(profileData.name);
+    setEditCity(profileData.city);
+    setEditPhotoUrl(profileData.photoUrl);
+    setErrorMessage('');
+    setSuccessMessage('');
+    setIsEditing(true);
+  };
 
   const handleSave = async () => {
     setSaving(true);
     setErrorMessage('');
     setSuccessMessage('');
     try {
-      // Always update localStorage first (works even without Firestore)
+      // Sempre atualiza o localStorage primeiro (funciona mesmo sem Firestore)
       const raw = window.localStorage.getItem('resolveJaAuth');
       if (raw) {
         const parsed = JSON.parse(raw);
@@ -75,29 +96,32 @@ const ClientProfilePage = () => {
         window.localStorage.setItem('resolveJaAuth', JSON.stringify(parsed));
       }
 
-      // Save to Firestore if user is authenticated
+      // Salva no Firestore se o usuário estiver autenticado
       if (firebaseUser) {
         const updateData: Record<string, string> = {
-          fullName: editName,
+          nome: editName,
           cidade: editCity,
           fotoUrl: editPhotoUrl,
         };
-        await updateDoc(doc(db, 'usuarios', firebaseUser.uid), updateData);
+        await updateDoc(doc(db, 'users', firebaseUser.uid), updateData);
       }
 
+      // Atualiza a fonte de verdade exibida — a tela de perfil já mostra os novos dados
+      setProfileData({ name: editName, city: editCity, photoUrl: editPhotoUrl });
+      setSuccessMessage('Perfil atualizado com sucesso!');
       setIsEditing(false);
-      setSaving(false);
     } catch (error) {
       console.error('Erro ao salvar perfil:', error);
       setErrorMessage('Erro ao salvar perfil. Verifique sua conexão e tente novamente.');
+    } finally {
       setSaving(false);
     }
   };
 
   const handleCancel = () => {
-    setEditName(getUserName());
-    setEditCity('São Paulo, SP');
-    setEditPhotoUrl(originalPhotoUrl ?? '');
+    setEditName(profileData.name);
+    setEditCity(profileData.city);
+    setEditPhotoUrl(profileData.photoUrl);
     setErrorMessage('');
     setSuccessMessage('');
     setIsEditing(false);
@@ -131,8 +155,18 @@ const ClientProfilePage = () => {
         <div className="grid gap-10 lg:grid-cols-[1.4fr_0.8fr]">
           <section className="space-y-8">
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200">
+              {successMessage && (
+                <div className="mb-4 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700 ring-1 ring-emerald-200">
+                  {successMessage}
+                </div>
+              )}
+              {errorMessage && (
+                <div className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-sm font-medium text-red-700 ring-1 ring-red-200">
+                  {errorMessage}
+                </div>
+              )}
               <div className="flex flex-col gap-6 sm:flex-row sm:items-center">
-                <Avatar name={userName} size="lg" src={editPhotoUrl || undefined} />
+                <Avatar name={isEditing ? editName : profileData.name} size="lg" src={(isEditing ? editPhotoUrl : profileData.photoUrl) || undefined} />
                 <div className="space-y-3 flex-1">
                   <p className="text-sm uppercase tracking-[0.24em] text-slate-500">Perfil do cliente</p>
                   {isEditing ? (
@@ -171,8 +205,8 @@ const ClientProfilePage = () => {
                     </div>
                   ) : (
                     <>
-                      <h1 className="text-3xl font-bold tracking-tight">{userName}</h1>
-                      <p className="text-sm text-slate-600">{userCity}</p>
+                      <h1 className="text-3xl font-bold tracking-tight">{profileData.name}</h1>
+                      <p className="text-sm text-slate-600">{profileData.city}</p>
                     </>
                   )}
                 </div>
@@ -248,7 +282,7 @@ const ClientProfilePage = () => {
                 </Button>
               </div>
             ) : (
-              <Button fullWidth variant="primary" onClick={() => setIsEditing(true)}>Editar perfil</Button>
+              <Button fullWidth variant="primary" onClick={handleStartEditing}>Editar perfil</Button>
             )}
           </aside>
         </div>
