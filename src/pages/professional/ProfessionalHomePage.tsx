@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import Avatar from '../../components/atoms/Avatar';
 import Badge from '../../components/atoms/Badge';
 import Button from '../../components/atoms/Button';
 import BottomNav from '../../components/organisms/BottomNav';
 import mockProposals from '../../constants/mockProposals';
+import { logout } from '../../services/auth';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type ProposalBadgeVariant = 'success' | 'default';
@@ -356,10 +357,21 @@ const WorkPostCard = ({ post }: { post: WorkPost }) => (
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const ProfessionalHomePage = () => {
+  const navigate = useNavigate();
   const userName = getUserName();
   const [modalOpen, setModalOpen] = useState(false);
   const [posts, setPosts] = useState<WorkPost[]>([]);
   const [successToast, setSuccessToast] = useState('');
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (err) {
+      console.error('Erro ao fazer logout:', err);
+    }
+    window.localStorage.removeItem('resolveJaAuth');
+    navigate('/');
+  };
 
   const handlePublish = (data: Omit<WorkPost, 'id' | 'createdAt'>) => {
     const newPost: WorkPost = {
@@ -535,6 +547,20 @@ const ProfessionalHomePage = () => {
                   }}
                 >
                   ＋ Novo trabalho concluído
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  style={{
+                    width: '100%', padding: '12px', borderRadius: 16, border: '1.5px solid #e2e8f0',
+                    background: 'transparent', color: '#ef4444',
+                    fontWeight: 600, fontSize: 14, cursor: 'pointer', fontFamily: 'inherit',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.background = '#fef2f2'; }}
+                  onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
+                >
+                  Sair da conta
                 </button>
               </div>
             </div>

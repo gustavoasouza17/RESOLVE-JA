@@ -8,6 +8,7 @@ import ProfessionalProfilePage from '../pages/client/ProfessionalProfilePage';
 import RequestPage from '../pages/client/RequestPage';
 import ReviewPage from '../pages/client/ReviewPage';
 import ClientProfilePage from '../pages/client/ClientProfilePage';
+import ClientRequestsPage from '../pages/client/ClientRequestsPage';
 import ProfessionalHomePage from '../pages/professional/ProfessionalHomePage';
 import ProfessionalProfileEditPage from '../pages/professional/ProfessionalProfileEditPage';
 import ProposalPage from '../pages/professional/ProposalPage';
@@ -26,6 +27,7 @@ const AppRouter = () => {
         <Route path="/profissional/:id" element={<ProfessionalProfilePage />} />
         <Route path="/proposta/:profissionalId" element={<RequestPage />} />
         <Route path="/avaliar/:proposalId" element={<ReviewPage />} />
+        <Route path="/solicitacoes" element={<ClientRequestsPage />} />
         <Route path="/perfil" element={<ClientProfilePage />} />
         <Route path="/prestador/home" element={<ProfessionalHomePage />} />
         <Route path="/prestador/perfil" element={<ProfessionalProfilePage />} />

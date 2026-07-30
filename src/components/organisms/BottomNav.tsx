@@ -62,8 +62,8 @@ const clientItems: NavItem[] = [
   {
     label: 'Solicitações',
     icon: (active: boolean) => <ListIcon active={active} />,
-    path: '/perfil',
-    matchPaths: ['/perfil'],
+    path: '/solicitacoes',
+    matchPaths: ['/solicitacoes'],
   },
   {
     label: 'Novo',
@@ -83,7 +83,7 @@ const clientItems: NavItem[] = [
     label: 'Perfil',
     icon: (active: boolean) => <PersonIcon active={active} />,
     path: '/perfil',
-    matchPaths: [],
+    matchPaths: ['/perfil'],
   },
 ];
 

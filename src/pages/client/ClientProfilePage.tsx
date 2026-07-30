@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { onAuthStateChanged } from 'firebase/auth';
 import Avatar from '../../components/atoms/Avatar';
@@ -8,6 +9,7 @@ import BottomNav from '../../components/organisms/BottomNav';
 import mockProposals from '../../constants/mockProposals';
 import mockReviews from '../../constants/mockReviews';
 import { auth, db } from '../../firebase';
+import { logout } from '../../services/auth';
 
 const getUserName = () => {
   try {
@@ -27,6 +29,7 @@ interface ProfileData {
 }
 
 const ClientProfilePage = () => {
+  const navigate = useNavigate();
   const [isEditing, setIsEditing] = useState(false);
 
   // Fonte única de verdade para o que é exibido na tela (fora do modo edição)
@@ -125,6 +128,16 @@ const ClientProfilePage = () => {
     setErrorMessage('');
     setSuccessMessage('');
     setIsEditing(false);
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (err) {
+      console.error('Erro ao fazer logout:', err);
+    }
+    window.localStorage.removeItem('resolveJaAuth');
+    navigate('/');
   };
 
   const historyItems = mockProposals
@@ -230,29 +243,6 @@ const ClientProfilePage = () => {
               </div>
             </div>
 
-            <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Histórico de serviços</p>
-                  <p className="mt-2 text-sm text-slate-600">Acompanhe suas solicitações recentes e o status de cada uma.</p>
-                </div>
-                <Button variant="secondary">Ver mais</Button>
-              </div>
-
-              <div className="mt-6 space-y-4">
-                {historyItems.map((item) => (
-                  <div key={item.id} className="rounded-3xl border border-slate-200 bg-[var(--color-bg-light)] p-5">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-                      <div>
-                        <p className="font-semibold text-[var(--color-navy)]">{item.service}</p>
-                        <p className="text-sm text-slate-600">{item.date}</p>
-                      </div>
-                      <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700 ring-1 ring-slate-200">{item.status}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
           </section>
 
           <aside className="space-y-6">
@@ -282,7 +272,10 @@ const ClientProfilePage = () => {
                 </Button>
               </div>
             ) : (
-              <Button fullWidth variant="primary" onClick={handleStartEditing}>Editar perfil</Button>
+              <div className="space-y-3">
+                <Button fullWidth variant="primary" onClick={handleStartEditing}>Editar perfil</Button>
+                <Button fullWidth variant="secondary" onClick={handleLogout}>Sair da conta</Button>
+              </div>
             )}
           </aside>
         </div>
