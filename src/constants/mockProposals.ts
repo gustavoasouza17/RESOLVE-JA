@@ -1,6 +1,7 @@
 export type MockProposal = {
   id: string;
   clienteId: string;
+  clienteNome?: string;
   prestadorId: string;
   descricao: string;
   endereco: string;
@@ -11,6 +12,7 @@ export type MockProposal = {
   criadoEm: string;
   atualizadoEm?: string;
 };
+
 
 const mockProposals: MockProposal[] = [
   {

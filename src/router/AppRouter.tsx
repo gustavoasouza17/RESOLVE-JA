@@ -11,6 +11,7 @@ import ClientProfilePage from '../pages/client/ClientProfilePage';
 import ClientRequestsPage from '../pages/client/ClientRequestsPage';
 import ProfessionalHomePage from '../pages/professional/ProfessionalHomePage';
 import ProfessionalProfileEditPage from '../pages/professional/ProfessionalProfileEditPage';
+import ProfessionalRequestsPage from '../pages/professional/ProfessionalRequestsPage';
 import ProposalPage from '../pages/professional/ProposalPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 
@@ -30,6 +31,7 @@ const AppRouter = () => {
         <Route path="/solicitacoes" element={<ClientRequestsPage />} />
         <Route path="/perfil" element={<ClientProfilePage />} />
         <Route path="/prestador/home" element={<ProfessionalHomePage />} />
+        <Route path="/prestador/solicitacoes" element={<ProfessionalRequestsPage />} />
         <Route path="/prestador/perfil" element={<ProfessionalProfilePage />} />
         <Route path="/prestador/perfil/editar" element={<ProfessionalProfileEditPage />} />
         <Route path="/prestador/proposta/:proposalId" element={<ProposalPage />} />

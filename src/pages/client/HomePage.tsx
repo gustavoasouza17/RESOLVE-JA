@@ -55,11 +55,6 @@ const HomePage = () => {
   const [professionalsError, setProfessionalsError] = useState('');
   const userName = getUserName();
 
-  const handleLogout = () => {
-    window.localStorage.removeItem('resolveJaAuth');
-    navigate('/');
-  };
-
   useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);

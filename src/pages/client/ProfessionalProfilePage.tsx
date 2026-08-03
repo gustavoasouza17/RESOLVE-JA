@@ -4,10 +4,12 @@ import { db } from '../../firebase';
 import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
+import BottomNav from '../../components/organisms/BottomNav';
 import PortfolioGrid from '../../components/molecules/PortfolioGrid';
 import ReviewCard from '../../components/molecules/ReviewCard';
 import mockProfessionals from '../../constants/mockProfessionals';
 import mockReviews from '../../constants/mockReviews';
+import { logout } from '../../services/auth';
 
 const getAuthUser = () => {
   try {
@@ -93,7 +95,17 @@ const ProfessionalProfilePage = () => {
       : null;
 
   const selectedProfessional = dbProfessional ?? professional ?? ownerFallbackProfessional ?? mockProfessionals[0];
-  const isOwner = authUser?.profile === 'prestador' && authUser?.uid === selectedProfessional.uid;
+  const isOwner = authUser?.profile === 'prestador' && (!id || authUser?.uid === selectedProfessional.uid);
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (err) {
+      console.error('Erro ao fazer logout:', err);
+    }
+    window.localStorage.removeItem('resolveJaAuth');
+    navigate('/');
+  };
 
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [isReportOpen, setIsReportOpen] = useState(false);
@@ -154,13 +166,9 @@ const ProfessionalProfilePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
+    <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
+      <BottomNav variant={authUser?.profile === 'prestador' ? 'professional' : 'client'} />
       <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 lg:px-8">
-        <div className="mb-6">
-          <Button type="button" variant="secondary" className="inline-flex items-center gap-2" onClick={handleBackToSearch}>
-            ← Voltar para a busca
-          </Button>
-        </div>
 
         <div className="grid gap-10 lg:grid-cols-[1.4fr_0.8fr]">
           <section className="space-y-8">
@@ -302,6 +310,28 @@ const ProfessionalProfilePage = () => {
           </section>
 
           <aside className="space-y-6">
+            {isOwner && (
+              <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Desempenho</p>
+                <div className="mt-6 grid gap-4">
+                  <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
+                    <p className="text-sm text-slate-500">Rendimento semanal</p>
+                    <p className="mt-2 text-2xl font-semibold text-[var(--color-navy)]">R$ 4.250</p>
+                  </div>
+                  <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
+                    <p className="text-sm text-slate-500">Serviços</p>
+                    <p className="mt-2 text-2xl font-semibold text-[var(--color-navy)]">
+                      {selectedProfessional.totalServicos ?? 12}
+                    </p>
+                  </div>
+                  <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
+                    <p className="text-sm text-slate-500">Satisfação</p>
+                    <p className="mt-2 text-2xl font-semibold text-[var(--color-navy)]">85%</p>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/50 ring-1 ring-slate-200">
               <div className="space-y-4">
                 <div>
@@ -324,11 +354,21 @@ const ProfessionalProfilePage = () => {
 
                 <div className="grid gap-3">
                   {isOwner ? (
-                    <Link to="/prestador/perfil/editar">
-                      <Button variant="primary" className="w-full">
-                        Editar perfil
+                    <>
+                      <Link to="/prestador/perfil/editar">
+                        <Button variant="primary" className="w-full">
+                          Editar perfil
+                        </Button>
+                      </Link>
+                      <Button variant="outline-danger" fullWidth onClick={handleLogout} className="gap-2">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                          <polyline points="16 17 21 12 16 7" />
+                          <line x1="21" y1="12" x2="9" y2="12" />
+                        </svg>
+                        Sair da conta
                       </Button>
-                    </Link>
+                    </>
                   ) : (
                     <>
                       <Link to={`/proposta/${selectedProfessional.uid}`}>

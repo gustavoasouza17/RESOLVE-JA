@@ -5,7 +5,7 @@ type BottomNavVariant = 'client' | 'professional';
 
 type NavItem = {
   label: string;
-  icon: React.ReactNode;
+  icon: React.ReactNode | ((active: boolean) => React.ReactNode);
   path: string;
   isCenter?: boolean;
   comingSoon?: boolean;
@@ -97,8 +97,8 @@ const professionalItems: NavItem[] = [
   {
     label: 'Solicitações',
     icon: (active: boolean) => <ListIcon active={active} />,
-    path: '/prestador/home',
-    matchPaths: [],
+    path: '/prestador/solicitacoes',
+    matchPaths: ['/prestador/solicitacoes'],
   },
   {
     label: 'Novo',
