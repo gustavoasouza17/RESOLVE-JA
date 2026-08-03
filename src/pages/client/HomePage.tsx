@@ -5,7 +5,7 @@ import MapView from '../../components/organisms/MapView';
 import CategoryCard from '../../components/molecules/CategoryCard';
 import ProfessionalCard from '../../components/molecules/ProfessionalCard';
 import categories from '../../constants/categories';
-import mockProfessionals from '../../constants/mockProfessionals';
+import { getProfessionals, type ProfessionalCardData } from '../../services/professionals';
 
 const iconMap: Record<string, string> = {
   hammer: '🧱',
@@ -50,6 +50,9 @@ const HomePage = () => {
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' ? !navigator.onLine : false);
   const [locationError, setLocationError] = useState('');
+  const [professionals, setProfessionals] = useState<ProfessionalCardData[]>([]);
+  const [loadingProfessionals, setLoadingProfessionals] = useState(true);
+  const [professionalsError, setProfessionalsError] = useState('');
   const userName = getUserName();
 
   const handleLogout = () => {
@@ -70,6 +73,37 @@ const HomePage = () => {
     };
   }, []);
 
+  // Carrega os profissionais ativos do Firestore ao montar a tela
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadProfessionals = async () => {
+      setLoadingProfessionals(true);
+      setProfessionalsError('');
+      try {
+        const data = await getProfessionals();
+        if (!cancelled) {
+          setProfessionals(data);
+        }
+      } catch (error) {
+        console.error('Erro ao carregar profissionais do Firestore:', error);
+        if (!cancelled) {
+          setProfessionalsError('Não foi possível carregar os profissionais. Tente novamente em instantes.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingProfessionals(false);
+        }
+      }
+    };
+
+    loadProfessionals();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const categoryCards = useMemo(
     () =>
       activeCategories.map((category) => ({
@@ -81,8 +115,7 @@ const HomePage = () => {
     []
   );
 
-  const featuredProfessionals = mockProfessionals
-    .slice()
+  const featuredProfessionals = [...professionals]
     .sort((a, b) => a.distanciaKm - b.distanciaKm)
     .slice(0, 4);
 
@@ -201,7 +234,17 @@ const HomePage = () => {
               </div>
             </div>
 
-            {viewMode === 'map' ? (
+            {loadingProfessionals ? (
+              <div className="mt-5 flex flex-col items-center justify-center gap-3 rounded-[28px] bg-white p-10 text-center">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
+                <p className="text-sm text-slate-600">Carregando profissionais…</p>
+              </div>
+            ) : professionalsError ? (
+              <div className="mt-5 rounded-[28px] bg-red-50 p-6 text-sm text-red-800 ring-1 ring-red-200">
+                <p className="font-semibold">Não foi possível carregar os profissionais.</p>
+                <p className="mt-2">{professionalsError}</p>
+              </div>
+            ) : viewMode === 'map' ? (
               <MapView
                 professionals={mapProfessionals}
                 onSelectProfessional={handleSelectProfessional}

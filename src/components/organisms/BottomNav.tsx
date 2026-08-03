@@ -83,7 +83,7 @@ const clientItems: NavItem[] = [
     label: 'Perfil',
     icon: (active: boolean) => <PersonIcon active={active} />,
     path: '/perfil',
-    matchPaths: ['/perfil'],
+    matchPaths: [],
   },
 ];
 
