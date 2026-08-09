@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../../firebase';
-import { Link, useLocation, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
 import BottomNav from '../../components/organisms/BottomNav';
 import PortfolioGrid from '../../components/molecules/PortfolioGrid';
 import ReviewCard from '../../components/molecules/ReviewCard';
 import mockProfessionals from '../../constants/mockProfessionals';
-import mockReviews from '../../constants/mockReviews';
 import { logout } from '../../services/auth';
+import { getReviewsForUser, type ReviewWithAuthor } from '../../services/reviews';
 
 const getAuthUser = () => {
   try {
@@ -33,15 +33,12 @@ const getAuthUser = () => {
 const ProfessionalProfilePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
   const authUser = getAuthUser();
   const profileId = id ?? authUser?.uid;
-  const fromSearchState = location.state as
-    | { fromSearch?: boolean; category?: string; query?: string }
-    | undefined;
 
   const [dbProfessional, setDbProfessional] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [reviews, setReviews] = useState<ReviewWithAuthor[]>([]);
 
   useEffect(() => {
     if (!profileId) {
@@ -63,7 +60,14 @@ const ProfessionalProfilePage = () => {
       }
     };
 
+    const fetchReviews = async () => {
+      if (!profileId) return;
+      const data = await getReviewsForUser(profileId);
+      setReviews(data.filter((r) => r.tipo === 'cliente_para_prestador'));
+    };
+
     fetchProfile();
+    fetchReviews();
   }, [profileId]);
 
   const professional = profileId ? mockProfessionals.find((item) => item.uid === profileId) : null;
@@ -114,7 +118,6 @@ const ProfessionalProfilePage = () => {
 
   const heroImage = selectedProfessional.portfolio[0] ?? selectedProfessional.fotoUrl;
   const portfolioItems = selectedProfessional.portfolio ?? [];
-  const reviews = mockReviews.filter((review) => review.destinatarioId === selectedProfessional.uid);
   const reviewItems = reviews.slice(0, 3);
   const hasWhatsApp = Boolean(selectedProfessional.whatsapp?.trim());
   const availabilityDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
@@ -134,27 +137,6 @@ const ProfessionalProfilePage = () => {
   const handleReportSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setReportSent(true);
-  };
-
-  const handleBackToSearch = () => {
-    if (isOwner) {
-      navigate('/prestador/home');
-      return;
-    }
-
-    if (fromSearchState?.fromSearch) {
-      const basePath = fromSearchState.category
-        ? `/buscar/${encodeURIComponent(fromSearchState.category)}`
-        : '/buscar';
-      const queryString = fromSearchState.query
-        ? `?q=${encodeURIComponent(fromSearchState.query)}`
-        : '';
-
-      navigate(`${basePath}${queryString}`);
-      return;
-    }
-
-    navigate('/buscar');
   };
 
   if (loading) {
@@ -290,8 +272,9 @@ const ProfessionalProfilePage = () => {
                   reviewItems.map((review) => (
                     <ReviewCard
                       key={review.id}
-                      author={review.autorId}
-                      rating={review.estrelas}
+                      author={review.autorNome}
+                      avatarUrl={review.autorFotoUrl || undefined}
+                      rating={review.nota}
                       comment={review.comentario}
                       date={new Date(review.criadoEm).toLocaleDateString('pt-BR', {
                         day: '2-digit',

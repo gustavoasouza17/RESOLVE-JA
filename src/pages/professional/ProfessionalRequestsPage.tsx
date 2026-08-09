@@ -8,7 +8,7 @@ import { getProposalsForPrestador } from '../../services/proposals';
 
 type ProposalBadgeVariant = 'success' | 'default' | 'danger';
 
-type FilterType = 'todas' | 'pendente' | 'aceita' | 'recusada';
+type FilterType = 'todas' | 'pendente' | 'aceita' | 'recusada' | 'concluido';
 
 // ─── Helper: lê o usuário logado do localStorage ──────────────────────────────
 function getAuthUser() {
@@ -24,19 +24,13 @@ function getAuthUser() {
 const ProfessionalRequestsPage = () => {
   const [filter, setFilter] = useState<FilterType>('todas');
   const [firestoreProposals, setFirestoreProposals] = useState<MockProposal[]>([]);
-  const [loading, setLoading] = useState(true);
-
   // Busca propostas reais do Firestore ao montar
   useEffect(() => {
     const authUser = getAuthUser();
-    if (!authUser?.uid) {
-      setLoading(false);
-      return;
-    }
+    if (!authUser?.uid) return;
     getProposalsForPrestador(authUser.uid)
       .then((data) => setFirestoreProposals(data))
-      .catch(console.warn)
-      .finally(() => setLoading(false));
+      .catch(console.warn);
   }, []);
 
   // Mescla propostas reais + mocks (reais primeiro, sem duplicar ids)
@@ -61,6 +55,8 @@ const ProfessionalRequestsPage = () => {
         return { label: 'Nova', variant: 'success' };
       case 'aceita':
         return { label: 'Aceita', variant: 'default' };
+      case 'concluido':
+        return { label: 'Concluída', variant: 'success' };
       case 'recusada':
         return { label: 'Recusada', variant: 'danger' };
       default:
@@ -129,6 +125,17 @@ const ProfessionalRequestsPage = () => {
           </button>
           <button
             type="button"
+            onClick={() => setFilter('concluido')}
+            className={`rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${
+              filter === 'concluido'
+                ? 'bg-emerald-600 text-white shadow-md'
+                : 'bg-white text-slate-600 hover:bg-slate-100 ring-1 ring-slate-200'
+            }`}
+          >
+            Concluídas ({allProposals.filter((p) => p.status === 'concluido').length})
+          </button>
+          <button
+            type="button"
             onClick={() => setFilter('recusada')}
             className={`rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${
               filter === 'recusada'
@@ -136,7 +143,7 @@ const ProfessionalRequestsPage = () => {
                 : 'bg-white text-slate-600 hover:bg-slate-100 ring-1 ring-slate-200'
             }`}
           >
-            Recusadas ({allProposals.length - pendingCount - acceptedCount})
+            Recusadas ({allProposals.filter((p) => p.status === 'recusada').length})
           </button>
         </div>
 
@@ -187,12 +194,25 @@ const ProfessionalRequestsPage = () => {
                           </span>
                         )}
                       </div>
-                      <Link
-                        to={`/prestador/proposta/${proposal.id}`}
-                        className="inline-flex items-center gap-1 text-sm font-bold text-[var(--color-navy)] hover:text-[var(--color-tertiary)] hover:underline"
-                      >
-                        Ver detalhes →
-                      </Link>
+                      <div className="flex items-center gap-3">
+                        {proposal.status === 'concluido' && (
+                          <Link
+                            to={`/prestador/avaliar/${proposal.id}`}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] shadow-md shadow-[var(--color-primary)]/30 transition hover:brightness-95"
+                          >
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                            </svg>
+                            Avaliar cliente
+                          </Link>
+                        )}
+                        <Link
+                          to={`/prestador/proposta/${proposal.id}`}
+                          className="inline-flex items-center gap-1 text-sm font-bold text-[var(--color-navy)] hover:text-[var(--color-tertiary)] hover:underline"
+                        >
+                          Ver detalhes →
+                        </Link>
+                      </div>
                     </div>
                   </div>
                 );

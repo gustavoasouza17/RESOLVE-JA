@@ -13,6 +13,7 @@ import ProfessionalHomePage from '../pages/professional/ProfessionalHomePage';
 import ProfessionalProfileEditPage from '../pages/professional/ProfessionalProfileEditPage';
 import ProfessionalRequestsPage from '../pages/professional/ProfessionalRequestsPage';
 import ProposalPage from '../pages/professional/ProposalPage';
+import ProfessionalReviewPage from '../pages/professional/ProfessionalReviewPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 
 const AppRouter = () => {
@@ -35,6 +36,7 @@ const AppRouter = () => {
         <Route path="/prestador/perfil" element={<ProfessionalProfilePage />} />
         <Route path="/prestador/perfil/editar" element={<ProfessionalProfileEditPage />} />
         <Route path="/prestador/proposta/:proposalId" element={<ProposalPage />} />
+        <Route path="/prestador/avaliar/:proposalId" element={<ProfessionalReviewPage />} />
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

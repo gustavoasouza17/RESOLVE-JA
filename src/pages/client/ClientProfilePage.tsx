@@ -7,9 +7,9 @@ import Button from '../../components/atoms/Button';
 import StarRating from '../../components/atoms/StarRating';
 import BottomNav from '../../components/organisms/BottomNav';
 import mockProposals from '../../constants/mockProposals';
-import mockReviews from '../../constants/mockReviews';
 import { auth, db } from '../../firebase';
 import { logout } from '../../services/auth';
+import { getReviewsForUser, type ReviewWithAuthor } from '../../services/reviews';
 
 const getUserName = () => {
   try {
@@ -48,6 +48,7 @@ const ClientProfilePage = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
+  const [reviews, setReviews] = useState<ReviewWithAuthor[]>([]);
 
   // Carrega os dados do Firestore ao montar / quando o auth muda
   useEffect(() => {
@@ -70,6 +71,14 @@ const ClientProfilePage = () => {
           }
         } catch (err) {
           console.error('Erro ao carregar perfil do Firestore:', err);
+        }
+
+        // Carrega avaliações recebidas pelo cliente (prestador → cliente)
+        try {
+          const data = await getReviewsForUser(user.uid);
+          setReviews(data.filter((r) => r.tipo === 'prestador_para_cliente'));
+        } catch (err) {
+          console.error('Erro ao carregar avaliações do Firestore:', err);
         }
       }
     });
@@ -154,10 +163,11 @@ const ClientProfilePage = () => {
       }),
     }));
 
-  const reviewItems = mockReviews.slice(0, 2).map((review) => ({
+  const reviewItems = reviews.slice(0, 3).map((review) => ({
     id: review.id,
-    name: `Cliente ${review.autorId.replace('client', '')}`,
-    rating: review.estrelas,
+    name: review.autorNome,
+    avatarUrl: review.autorFotoUrl,
+    rating: review.nota,
     text: review.comentario,
   }));
 
@@ -252,15 +262,24 @@ const ClientProfilePage = () => {
                 <span className="text-sm text-slate-500">{reviewItems.length} recentes</span>
               </div>
               <div className="mt-6 space-y-4">
-                {reviewItems.map((review) => (
-                  <div key={review.id} className="rounded-3xl bg-[var(--color-bg-light)] p-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <p className="font-semibold text-[var(--color-navy)]">{review.name}</p>
-                      <StarRating value={review.rating} readOnly size="sm" />
+                {reviewItems.length > 0 ? (
+                  reviewItems.map((review) => (
+                    <div key={review.id} className="rounded-3xl bg-[var(--color-bg-light)] p-5">
+                      <div className="flex items-center gap-3">
+                        <Avatar name={review.name} size="sm" src={review.avatarUrl || undefined} />
+                        <div className="flex-1">
+                          <p className="font-semibold text-[var(--color-navy)]">{review.name}</p>
+                          <StarRating value={review.rating} readOnly size="sm" />
+                        </div>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-700">{review.text}</p>
                     </div>
-                    <p className="mt-3 text-sm leading-6 text-slate-700">{review.text}</p>
+                  ))
+                ) : (
+                  <div className="rounded-[28px] border border-dashed border-slate-300 bg-[var(--color-bg-light)] p-10 text-center text-sm text-slate-600">
+                    Ainda sem avaliações.
                   </div>
-                ))}
+                )}
               </div>
             </div>
 

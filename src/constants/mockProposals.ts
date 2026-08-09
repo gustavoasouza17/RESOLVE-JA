@@ -8,7 +8,7 @@ export type MockProposal = {
   dataDesejada: string;
   orcamentoCliente: number;
   contraPropostaPrestador?: number;
-  status: 'pendente' | 'aceita' | 'recusada';
+  status: 'pendente' | 'aceita' | 'recusada' | 'concluido';
   criadoEm: string;
   atualizadoEm?: string;
 };
@@ -24,7 +24,7 @@ const mockProposals: MockProposal[] = [
     dataDesejada: '2026-06-25',
     orcamentoCliente: 850,
     contraPropostaPrestador: 920,
-    status: 'pendente',
+    status: 'concluido',
     criadoEm: '2026-06-01T14:30:00Z',
     atualizadoEm: '2026-06-02T10:15:00Z',
   },
@@ -36,7 +36,7 @@ const mockProposals: MockProposal[] = [
     endereco: 'Av. Mooca, 750 — Mooca',
     dataDesejada: '2026-06-20',
     orcamentoCliente: 420,
-    status: 'aceita',
+    status: 'concluido',
     criadoEm: '2026-05-28T09:20:00Z',
     atualizadoEm: '2026-05-28T16:40:00Z',
   },

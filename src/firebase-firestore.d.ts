@@ -188,6 +188,26 @@ declare module 'firebase/firestore' {
     opStr: WhereFilterOp,
     value: unknown,
   ): QueryFilterConstraint;
+  export function orderBy(
+    fieldPath: string | FieldPath,
+    directionStr?: OrderByDirection,
+  ): QueryFilterConstraint;
+  export function limit(limit: number): QueryFilterConstraint;
+  export function limitToLast(limit: number): QueryFilterConstraint;
+  export function startAt(...snapshotOrVar: unknown[]): QueryFilterConstraint;
+  export function startAfter(...snapshotOrVar: unknown[]): QueryFilterConstraint;
+  export function endBefore(...snapshotOrVar: unknown[]): QueryFilterConstraint;
+  export function endAt(...snapshotOrVar: unknown[]): QueryFilterConstraint;
+  export class Timestamp {
+    constructor(seconds: number, nanoseconds: number);
+    static now(): Timestamp;
+    static fromDate(date: Date): Timestamp;
+    static fromMillis(milliseconds: number): Timestamp;
+    toDate(): Date;
+    toMillis(): number;
+    seconds: number;
+    nanoseconds: number;
+  }
   export function getDoc<T = DocumentData>(
     reference: DocumentReference<T>,
   ): Promise<DocumentSnapshot<T>>;
@@ -223,9 +243,10 @@ declare module 'firebase/firestore' {
 
   // ─── Constraint type ─────────────────────────────────────────────────────────
   export interface QueryFilterConstraint {
-    type: 'where';
-    _field: FieldPath | string;
-    _op: WhereFilterOp;
-    _value: unknown;
+    type: 'where' | 'orderBy' | 'limit' | 'limitToLast' | 'startAt' | 'startAfter' | 'endBefore' | 'endAt';
+    _field?: FieldPath | string;
+    _op?: WhereFilterOp;
+    _value?: unknown;
+    _direction?: OrderByDirection;
   }
 }

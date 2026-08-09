@@ -1,170 +1,40 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
 import Avatar from '../../components/atoms/Avatar';
 import StarRating from '../../components/atoms/StarRating';
 import BottomNav from '../../components/organisms/BottomNav';
-import mockProposals, { type MockProposal } from '../../constants/mockProposals';
-import mockProfessionals, { type MockProfessional } from '../../constants/mockProfessionals';
+import { auth } from '../../firebase';
+import {
+  getServiceHistory,
+  getRecommendedProfessionals,
+  type ServiceHistoryItem,
+  type RecommendedProfessional,
+} from '../../services/services';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type HistoryItem = {
-  id: string;
-  service: string;
-  status: string;
-  date: string;
-  professionalName: string;
-  category: string;
-  professionalPhoto: string;
-};
-
-type RecommendedPro = {
-  uid: string;
-  nome: string;
-  categoria: string;
-  fotoUrl: string;
-  avaliacaoMedia: number;
-  totalAvaliacoes: number;
-  totalServicos: number;
-};
+type StatusVariant = 'success' | 'warning' | 'danger' | 'default';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-const CLIENTE_ID = 'client001';
-
-function getStatusLabel(status: MockProposal['status']): string {
+function getStatusVariant(status: string): StatusVariant {
   switch (status) {
-    case 'pendente':
-      return 'Em andamento';
-    case 'aceita':
-      return 'Concluído';
-    case 'recusada':
-      return 'Cancelado';
-    default:
-      return status;
-  }
-}
-
-function getStatusVariant(status: MockProposal['status']): 'success' | 'warning' | 'danger' | 'default' {
-  switch (status) {
-    case 'aceita':
+    case 'Concluído':
       return 'success';
-    case 'pendente':
+    case 'Em andamento':
       return 'warning';
-    case 'recusada':
+    case 'Cancelado':
       return 'danger';
     default:
       return 'default';
   }
 }
 
-function buildHistory(): HistoryItem[] {
-  const professionalMap = new Map<string, MockProfessional>();
-  for (const p of mockProfessionals) {
-    professionalMap.set(p.uid, p);
-  }
-
-  return mockProposals
-    .filter((proposal) => proposal.clienteId === CLIENTE_ID)
-    .sort((a, b) => new Date(b.dataDesejada).getTime() - new Date(a.dataDesejada).getTime())
-    .map((proposal) => {
-      const prof = professionalMap.get(proposal.prestadorId);
-      const category = prof?.categorias?.[0] ?? 'Profissional';
-      return {
-        id: proposal.id,
-        service: proposal.descricao,
-        status: getStatusLabel(proposal.status),
-        date: new Date(proposal.dataDesejada).toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: 'short',
-          year: 'numeric',
-        }),
-        professionalName: prof?.nome ?? 'Profissional',
-        category,
-        professionalPhoto: prof?.fotoUrl ?? '',
-      };
-    });
-}
-
-function getRecommendedProfessionals(): RecommendedPro[] {
-  // 1. Find all proposals for this client
-  const clientProposals = mockProposals.filter((p) => p.clienteId === CLIENTE_ID);
-
-  if (clientProposals.length < 2) return [];
-
-  // 2. Count categories from the professionals the client has hired
-  const professionalMap = new Map<string, MockProfessional>();
-  for (const p of mockProfessionals) {
-    professionalMap.set(p.uid, p);
-  }
-
-  const categoryCount = new Map<string, number>();
-  const contractedIds = new Set<string>();
-
-  for (const proposal of clientProposals) {
-    const prof = professionalMap.get(proposal.prestadorId);
-    contractedIds.add(proposal.prestadorId);
-    if (prof?.categorias?.length) {
-      const mainCat = prof.categorias[0];
-      categoryCount.set(mainCat, (categoryCount.get(mainCat) ?? 0) + 1);
-    }
-  }
-
-  // 3. Find the most frequent category (appearing at least 2 times)
-  let topCategory = '';
-  let topCount = 0;
-  for (const [cat, count] of categoryCount.entries()) {
-    if (count > topCount) {
-      topCount = count;
-      topCategory = cat;
-    }
-  }
-
-  // If no category appears at least 2 times, don't show recommendations
-  if (topCount < 2 || !topCategory) return [];
-
-  // 4. Find professionals from that category that the client hasn't contracted
-  const recommended = mockProfessionals
-    .filter(
-      (prof) =>
-        prof.status === 'ativo' &&
-        prof.categorias.includes(topCategory) &&
-        !contractedIds.has(prof.uid),
-    )
-    .map((prof) => ({
-      uid: prof.uid,
-      nome: prof.nome,
-      categoria: topCategory,
-      fotoUrl: prof.fotoUrl,
-      avaliacaoMedia: prof.avaliacaoMedia,
-      totalAvaliacoes: prof.totalAvaliacoes,
-      totalServicos: prof.totalServicos,
-    }));
-
-  // If no matching professionals found, return top-rated active professionals
-  if (recommended.length === 0) {
-    return mockProfessionals
-      .filter((prof) => prof.status === 'ativo' && !contractedIds.has(prof.uid))
-      .sort((a, b) => b.avaliacaoMedia - a.avaliacaoMedia)
-      .slice(0, 4)
-      .map((prof) => ({
-        uid: prof.uid,
-        nome: prof.nome,
-        categoria: prof.categorias[0] ?? 'Profissional',
-        fotoUrl: prof.fotoUrl,
-        avaliacaoMedia: prof.avaliacaoMedia,
-        totalAvaliacoes: prof.totalAvaliacoes,
-        totalServicos: prof.totalServicos,
-      }));
-  }
-
-  return recommended.slice(0, 4);
-}
-
 // ─── Status Badge ─────────────────────────────────────────────────────────────
 
-function StatusBadge({ label, variant }: { label: string; variant: 'success' | 'warning' | 'danger' | 'default' }) {
-  const colors: Record<string, string> = {
+function StatusBadge({ label, variant }: { label: string; variant: StatusVariant }) {
+  const colors: Record<StatusVariant, string> = {
     success: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
     warning: 'bg-amber-50 text-amber-700 ring-amber-200',
     danger: 'bg-red-50 text-red-700 ring-red-200',
@@ -180,15 +50,77 @@ function StatusBadge({ label, variant }: { label: string; variant: 'success' | '
   );
 }
 
+// ─── Loading State ────────────────────────────────────────────────────────────
+
+function LoadingState({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 rounded-[28px] bg-white p-10 text-center">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
+      <p className="text-sm text-slate-600">{label}</p>
+    </div>
+  );
+}
+
+// ─── Error State ──────────────────────────────────────────────────────────────
+
+function ErrorState({ message }: { message: string }) {
+  return (
+    <div className="rounded-[28px] bg-red-50 p-6 text-sm text-red-800 ring-1 ring-red-200">
+      <p className="font-semibold">Não foi possível carregar os dados.</p>
+      <p className="mt-2">{message}</p>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const ClientRequestsPage = () => {
-  const [historyItems, setHistoryItems] = useState<HistoryItem[]>([]);
-  const [recommended, setRecommended] = useState<RecommendedPro[]>([]);
+  const [historyItems, setHistoryItems] = useState<ServiceHistoryItem[]>([]);
+  const [recommended, setRecommended] = useState<RecommendedProfessional[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    setHistoryItems(buildHistory());
-    setRecommended(getRecommendedProfessionals());
+    let cancelled = false;
+
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        if (!cancelled) {
+          setLoading(false);
+          setError('Você precisa estar autenticado para ver suas solicitações.');
+        }
+        return;
+      }
+
+      setLoading(true);
+      setError('');
+
+      try {
+        const [history, recs] = await Promise.all([
+          getServiceHistory(user.uid),
+          getRecommendedProfessionals(user.uid),
+        ]);
+
+        if (!cancelled) {
+          setHistoryItems(history);
+          setRecommended(recs);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar solicitações do Firestore:', err);
+        if (!cancelled) {
+          setError('Não foi possível carregar suas solicitações. Tente novamente em instantes.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, []);
 
   return (
@@ -209,7 +141,11 @@ const ClientRequestsPage = () => {
               </div>
 
               <div className="mt-6 space-y-4">
-                {historyItems.length === 0 ? (
+                {loading ? (
+                  <LoadingState label="Carregando suas solicitações…" />
+                ) : error ? (
+                  <ErrorState message={error} />
+                ) : historyItems.length === 0 ? (
                   <div className="rounded-3xl border border-dashed border-slate-300 bg-white p-8 text-center">
                     <p className="text-base font-semibold text-slate-500">
                       Nenhum serviço solicitado ainda.
@@ -251,8 +187,21 @@ const ClientRequestsPage = () => {
                             <p className="text-sm text-slate-400">{item.date}</p>
                           </div>
                         </div>
-                        <StatusBadge label={item.status} variant={getStatusVariant(item.status as MockProposal['status'])} />
+                        <StatusBadge label={item.status} variant={getStatusVariant(item.status)} />
                       </div>
+                      {item.status === 'Concluído' && (
+                        <div className="mt-4 flex justify-end">
+                          <Link
+                            to={`/avaliar/${item.id}`}
+                            className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-bold text-[var(--color-navy)] shadow-md shadow-[var(--color-primary)]/30 transition hover:brightness-95"
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
+                            </svg>
+                            Avaliar profissional
+                          </Link>
+                        </div>
+                      )}
                     </div>
                   ))
                 )}
@@ -262,7 +211,7 @@ const ClientRequestsPage = () => {
 
           {/* ─── Sidebar: Recommendations ─────────────────────────────── */}
           <aside className="space-y-6">
-            {recommended.length > 0 && (
+            {!loading && !error && recommended.length > 0 && (
               <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
                 <div>
                   <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
@@ -290,7 +239,7 @@ const ClientRequestsPage = () => {
                           <p className="font-semibold text-[var(--color-navy)] truncate">
                             {pro.nome}
                           </p>
-                          <p className="text-sm text-slate-500">{pro.categoria}</p>
+                          <p className="text-sm text-slate-500">{pro.categorias[0]}</p>
                           <div className="mt-1 flex items-center gap-2">
                             <StarRating value={pro.avaliacaoMedia} readOnly size="sm" />
                             <span className="text-xs text-slate-400">
@@ -314,19 +263,19 @@ const ClientRequestsPage = () => {
                 <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                   <p className="text-sm text-slate-500">Total de serviços</p>
                   <p className="mt-2 text-2xl font-semibold text-[var(--color-navy)]">
-                    {historyItems.length}
+                    {loading ? '—' : historyItems.length}
                   </p>
                 </div>
                 <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                   <p className="text-sm text-slate-500">Concluídos</p>
                   <p className="mt-2 text-2xl font-semibold text-emerald-600">
-                    {historyItems.filter((i) => i.status === 'Concluído').length}
+                    {loading ? '—' : historyItems.filter((i) => i.status === 'Concluído').length}
                   </p>
                 </div>
                 <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                   <p className="text-sm text-slate-500">Em andamento</p>
                   <p className="mt-2 text-2xl font-semibold text-amber-600">
-                    {historyItems.filter((i) => i.status === 'Em andamento').length}
+                    {loading ? '—' : historyItems.filter((i) => i.status === 'Em andamento').length}
                   </p>
                 </div>
               </div>
