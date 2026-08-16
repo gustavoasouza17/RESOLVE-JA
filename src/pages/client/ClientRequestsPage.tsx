@@ -6,6 +6,7 @@ import StarRating from '../../components/atoms/StarRating';
 import BottomNav from '../../components/organisms/BottomNav';
 import { auth } from '../../firebase';
 import {
+  deleteProposalById,
   getServiceHistory,
   getRecommendedProfessionals,
   type ServiceHistoryItem,
@@ -20,11 +21,12 @@ type StatusVariant = 'success' | 'warning' | 'danger' | 'default';
 
 function getStatusVariant(status: string): StatusVariant {
   switch (status) {
-    case 'Concluído':
+    case 'Concluída':
+    case 'Aceita':
       return 'success';
-    case 'Em andamento':
+    case 'Pendente':
       return 'warning';
-    case 'Cancelado':
+    case 'Recusada':
       return 'danger';
     default:
       return 'default';
@@ -79,6 +81,7 @@ const ClientRequestsPage = () => {
   const [recommended, setRecommended] = useState<RecommendedProfessional[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -122,6 +125,21 @@ const ClientRequestsPage = () => {
       unsubscribe();
     };
   }, []);
+
+  const handleDeleteProposal = async (proposalId: string) => {
+    setDeletingId(proposalId);
+    setError('');
+
+    try {
+      await deleteProposalById(proposalId);
+      setHistoryItems((current) => current.filter((item) => item.id !== proposalId));
+    } catch (err) {
+      console.error('Erro ao excluir proposta:', err);
+      setError('Não foi possível excluir esta proposta. Tente novamente.');
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
@@ -187,7 +205,25 @@ const ClientRequestsPage = () => {
                             <p className="text-sm text-slate-400">{item.date}</p>
                           </div>
                         </div>
-                        <StatusBadge label={item.status} variant={getStatusVariant(item.status)} />
+
+                        <div className="flex items-center gap-3">
+                          <StatusBadge label={item.status} variant={getStatusVariant(item.status)} />
+
+                          {item.status === 'Recusada' && (
+                            <button
+                              type="button"
+                              aria-label={`Excluir proposta recusada ${item.service}`}
+                              onClick={() => handleDeleteProposal(item.id)}
+                              disabled={deletingId === item.id}
+                              className="inline-flex h-10 w-10 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                              title="Excluir proposta recusada"
+                            >
+                              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
+                                <path d="M9 3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1h2a1 1 0 1 1 0 2H7a1 1 0 0 1 0-2h2Zm-2 5h10l-.8 10.4A2 2 0 0 1 14.2 20H9.8a2 2 0 0 1-1.99-1.6L7 8Zm3 2a1 1 0 0 0-1 1v6a1 1 0 1 0 2 0v-6a1 1 0 0 0-1-1Zm4 0a1 1 0 0 0-1 1v6a1 1 0 1 0 2 0v-6a1 1 0 0 0-1-1Z" />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </div>
                       {item.status === 'Concluído' && (
                         <div className="mt-4 flex justify-end">

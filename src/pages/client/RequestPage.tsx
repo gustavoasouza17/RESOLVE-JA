@@ -1,8 +1,10 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { doc, getDoc } from 'firebase/firestore';
 import { useParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import mockProfessionals from '../../constants/mockProfessionals';
+import { db } from '../../firebase';
 import { createProposal } from '../../services/proposals';
 
 // ─── Helper: lê o usuário logado do localStorage ───────────────────────────────
@@ -24,9 +26,67 @@ function getAuthUser() {
 const RequestPage = () => {
   const { profissionalId } = useParams();
   const navigate = useNavigate();
-  const professional =
-    mockProfessionals.find((p) => p.uid === profissionalId) ??
-    mockProfessionals[0];
+  const [professional, setProfessional] = useState(
+    () =>
+      mockProfessionals.find((p) => p.uid === profissionalId) ??
+      mockProfessionals[0],
+  );
+
+  useEffect(() => {
+    if (!profissionalId) return;
+
+    const mockProfessional = mockProfessionals.find((p) => p.uid === profissionalId);
+    if (mockProfessional) {
+      setProfessional(mockProfessional);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadProfessional = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'professionals', profissionalId));
+        if (!snap.exists() || cancelled) return;
+
+        const data = snap.data() as Record<string, unknown>;
+
+        setProfessional({
+          uid: profissionalId,
+          userId: (data.userId as string) ?? profissionalId,
+          nome: (data.nome as string) ?? 'Prestador',
+          bio: (data.bio as string) ?? 'Prestador cadastrado.',
+          fotoUrl: (data.fotoUrl as string) ?? '',
+          whatsapp: (data.whatsapp as string) ?? '',
+          categorias: Array.isArray(data.categorias)
+            ? (data.categorias as string[])
+            : ['Prestador'],
+          bairrosAtendimento: Array.isArray(data.bairrosAtendimento)
+            ? (data.bairrosAtendimento as string[])
+            : [],
+          portfolio: Array.isArray(data.portfolio)
+            ? (data.portfolio as string[])
+            : [],
+          disponibilidade: (data.disponibilidade as Record<string, string[]>) ?? {},
+          totalServicos: Number(data.totalServicos) || 0,
+          distanciaKm: Number(data.distanciaKm) || 0,
+          avaliacaoMedia: Number(data.avaliacaoMedia) || 0,
+          totalAvaliacoes: Number(data.totalAvaliacoes) || 0,
+          valorDiaria: (data.valorDiaria as string) ?? 'Sob consulta',
+          plano: (data.plano as 'free' | 'premium') ?? 'free',
+          status: (data.status as 'ativo' | 'inativo') ?? 'ativo',
+          criadoEm: (data.criadoEm as string) ?? new Date().toISOString(),
+        });
+      } catch (error) {
+        console.error('Erro ao buscar prestador para a proposta:', error);
+      }
+    };
+
+    loadProfessional();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profissionalId]);
 
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
@@ -53,8 +113,10 @@ const RequestPage = () => {
 
     setSubmitting(true);
     try {
+      const targetProfessionalId = professional?.uid ?? profissionalId ?? mockProfessionals[0].uid;
+
       await createProposal({
-        prestadorId: professional.uid,
+        prestadorId: targetProfessionalId,
         clienteId: authUser.uid,
         clienteNome: authUser.fullName || authUser.email,
         descricao: description.trim(),

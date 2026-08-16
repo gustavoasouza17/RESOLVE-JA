@@ -1,11 +1,11 @@
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   query,
   where,
-  orderBy,
   Timestamp,
 } from 'firebase/firestore';
 import { db } from '../firebase';
@@ -35,15 +35,15 @@ function normalizeString(value: unknown, fallback = ''): string {
 function getStatusLabel(status: string): string {
   switch (status) {
     case 'pendente':
-      return 'Em andamento';
+      return 'Pendente';
     case 'aceita':
-      return 'Concluído';
+      return 'Aceita';
     case 'concluido':
-      return 'Concluído';
+      return 'Concluída';
     case 'recusada':
-      return 'Cancelado';
+      return 'Recusada';
     default:
-      return status;
+      return status || 'Pendente';
   }
 }
 
@@ -78,6 +78,10 @@ function formatDate(value: unknown): string {
  * @param clienteUid UID do cliente autenticado.
  * @returns Lista de itens do histórico normalizada para exibição.
  */
+export async function deleteProposalById(proposalId: string): Promise<void> {
+  await deleteDoc(doc(db, 'proposals', proposalId));
+}
+
 export async function getServiceHistory(
   clienteUid: string,
 ): Promise<ServiceHistoryItem[]> {
@@ -85,7 +89,6 @@ export async function getServiceHistory(
   const q = query(
     proposalsRef,
     where('clienteId', '==', clienteUid),
-    orderBy('criadoEm', 'desc'),
   );
 
   const snapshot = await getDocs(q);
@@ -133,7 +136,11 @@ export async function getServiceHistory(
     });
   }
 
-  return items;
+  return items.sort((a, b) => {
+    const dateA = new Date(a.date).getTime();
+    const dateB = new Date(b.date).getTime();
+    return dateB - dateA;
+  });
 }
 
 // ─── Recommended Professionals ────────────────────────────────────────────────

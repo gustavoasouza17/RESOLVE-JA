@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import Avatar from '../../components/atoms/Avatar';
 import Badge from '../../components/atoms/Badge';
 import BottomNav from '../../components/organisms/BottomNav';
-import mockProposals, { type MockProposal } from '../../constants/mockProposals';
+import type { MockProposal } from '../../constants/mockProposals';
 import { getProposalsForPrestador } from '../../services/proposals';
+import { deleteProposalById } from '../../services/services';
 
 type ProposalBadgeVariant = 'success' | 'default' | 'danger';
 
@@ -24,6 +25,8 @@ function getAuthUser() {
 const ProfessionalRequestsPage = () => {
   const [filter, setFilter] = useState<FilterType>('todas');
   const [firestoreProposals, setFirestoreProposals] = useState<MockProposal[]>([]);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+
   // Busca propostas reais do Firestore ao montar
   useEffect(() => {
     const authUser = getAuthUser();
@@ -33,13 +36,20 @@ const ProfessionalRequestsPage = () => {
       .catch(console.warn);
   }, []);
 
-  // Mescla propostas reais + mocks (reais primeiro, sem duplicar ids)
-  const allProposals: MockProposal[] = [
-    ...firestoreProposals,
-    ...mockProposals.filter(
-      (m) => !firestoreProposals.some((f) => f.id === m.id),
-    ),
-  ];
+  const handleDeleteRejectedProposal = async (proposalId: string) => {
+    setDeletingId(proposalId);
+
+    try {
+      await deleteProposalById(proposalId);
+      setFirestoreProposals((current) => current.filter((proposal) => proposal.id !== proposalId));
+    } catch (error) {
+      console.error('Erro ao excluir proposta recusada:', error);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const allProposals: MockProposal[] = firestoreProposals;
 
   const filteredProposals = allProposals.filter((proposal) => {
     if (filter === 'todas') return true;
@@ -206,6 +216,22 @@ const ProfessionalRequestsPage = () => {
                             Avaliar cliente
                           </Link>
                         )}
+
+                        {proposal.status === 'recusada' && (
+                          <button
+                            type="button"
+                            aria-label={`Excluir proposta recusada ${proposal.id}`}
+                            onClick={() => handleDeleteRejectedProposal(proposal.id)}
+                            disabled={deletingId === proposal.id}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                            title="Excluir proposta recusada"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
+                              <path d="M9 3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1h2a1 1 0 1 1 0 2H7a1 1 0 0 1 0-2h2Zm-2 5h10l-.8 10.4A2 2 0 0 1 14.2 20H9.8a2 2 0 0 1-1.99-1.6L7 8Zm3 2a1 1 0 0 0-1 1v6a1 1 0 1 0 2 0v-6a1 1 0 0 0-1-1Zm4 0a1 1 0 0 0-1 1v6a1 1 0 1 0 2 0v-6a1 1 0 0 0-1-1Z" />
+                            </svg>
+                          </button>
+                        )}
+
                         <Link
                           to={`/prestador/proposta/${proposal.id}`}
                           className="inline-flex items-center gap-1 text-sm font-bold text-[var(--color-navy)] hover:text-[var(--color-tertiary)] hover:underline"
