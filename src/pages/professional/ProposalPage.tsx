@@ -1,10 +1,23 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { doc, getDoc } from 'firebase/firestore';
 import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
 import StarRating from '../../components/atoms/StarRating';
+import { db } from '../../firebase';
 import { getProposalById, updateProposalStatus } from '../../services/proposals';
+import { createNotification } from '../../services/notifications';
 import type { MockProposal } from '../../constants/mockProposals';
+
+function getAuthUser() {
+  try {
+    const raw = window.localStorage.getItem('resolveJaAuth');
+    if (!raw) return null;
+    return JSON.parse(raw) as { uid: string; fullName: string; profile: string };
+  } catch {
+    return null;
+  }
+}
 
 const ProposalPage = () => {
   const { proposalId } = useParams<{ proposalId: string }>();
@@ -42,6 +55,32 @@ const ProposalPage = () => {
 
     try {
       await updateProposalStatus(proposalId, 'recusada');
+
+      if (proposal) {
+        const authUser = getAuthUser();
+        let categoria = 'serviço';
+        try {
+          const profSnap = await getDoc(doc(db, 'professionals', proposal.prestadorId));
+          if (profSnap.exists()) {
+            const data = profSnap.data() as Record<string, unknown>;
+            const cats = data.categorias as string[] | undefined;
+            if (Array.isArray(cats) && cats.length > 0) {
+              categoria = cats[0];
+            }
+          }
+        } catch {
+          // ignora erro na busca de categoria
+        }
+
+        await createNotification({
+          destinatarioId: proposal.clienteId,
+          tipo: 'proposta_recusada',
+          titulo: 'Sua proposta foi recusada',
+          mensagem: `${authUser?.fullName || 'O prestador'} recusou sua solicitação de ${categoria}`,
+          referenciaId: proposalId,
+        });
+      }
+
       navigate('/prestador/solicitacoes');
     } catch {
       setError('Não foi possível recusar a proposta. Tente novamente.');

@@ -14,6 +14,7 @@ import { db } from '../firebase';
 export type NotificationType =
   | 'nova_solicitacao'
   | 'nova_avaliacao'
+  | 'proposta_recusada'
   | 'visualizacao_perfil';
 
 export type Notification = {
@@ -111,5 +112,51 @@ export function subscribeToUnreadCount(
 
   return onSnapshot(q, (snapshot) => {
     callback(snapshot.size);
+  });
+}
+
+export function subscribeToNotificationsForUser(
+  destinatarioId: string,
+  callback: (notifications: Notification[]) => void,
+) {
+  const q = query(
+    collection(db, 'notifications'),
+    where('destinatarioId', '==', destinatarioId),
+    orderBy('criadoEm', 'desc'),
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const items = snapshot.docs.map((snap) => {
+      const d = snap.data() as {
+        destinatarioId: string;
+        tipo: NotificationType;
+        titulo: string;
+        mensagem: string;
+        referenciaId: string;
+        lida: boolean;
+        criadoEm: unknown;
+      };
+
+      let criadoEm: Date;
+      if (d.criadoEm && typeof d.criadoEm === 'object' && 'toDate' in d.criadoEm) {
+        criadoEm = (d.criadoEm as { toDate: () => Date }).toDate();
+      } else if (d.criadoEm instanceof Date) {
+        criadoEm = d.criadoEm;
+      } else {
+        criadoEm = new Date();
+      }
+
+      return {
+        id: snap.id,
+        destinatarioId: d.destinatarioId,
+        tipo: d.tipo,
+        titulo: d.titulo,
+        mensagem: d.mensagem,
+        referenciaId: d.referenciaId,
+        lida: d.lida,
+        criadoEm,
+      };
+    });
+    callback(items);
   });
 }

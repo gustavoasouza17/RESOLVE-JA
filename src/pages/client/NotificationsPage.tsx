@@ -4,8 +4,8 @@ import { onAuthStateChanged } from 'firebase/auth';
 import BottomNav from '../../components/organisms/BottomNav';
 import { auth } from '../../firebase';
 import {
-  getNotificationsForUser,
   markNotificationAsRead,
+  subscribeToNotificationsForUser,
   type Notification,
 } from '../../services/notifications';
 
@@ -55,27 +55,13 @@ const NotificationsPage = () => {
   useEffect(() => {
     if (!uid) return;
 
-    let cancelled = false;
-    const load = async () => {
-      setLoading(true);
-      try {
-        const items = await getNotificationsForUser(uid);
-        if (!cancelled) {
-          setNotifications(items);
-        }
-      } catch (error) {
-        console.warn('Erro ao carregar notificações:', error);
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    };
-
-    load();
+    const unsubscribe = subscribeToNotificationsForUser(uid, (items) => {
+      setNotifications(items);
+      setLoading(false);
+    });
 
     return () => {
-      cancelled = true;
+      unsubscribe();
     };
   }, [uid]);
 
@@ -95,7 +81,7 @@ const NotificationsPage = () => {
       } else {
         navigate(`/proposta/${notification.referenciaId}`);
       }
-    } else if (notification.tipo === 'nova_avaliacao') {
+    } else if (notification.tipo === 'nova_avaliacao' || notification.tipo === 'proposta_recusada') {
       const profile = getAuthUser()?.profile;
       if (profile === 'prestador') {
         navigate('/prestador/solicitacoes');
