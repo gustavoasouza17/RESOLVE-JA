@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import BottomNav from '../../components/organisms/BottomNav';
+import NotificationBell from '../../components/molecules/NotificationBell';
 import MapView from '../../components/organisms/MapView';
 import CategoryCard from '../../components/molecules/CategoryCard';
 import ProfessionalCard from '../../components/molecules/ProfessionalCard';
@@ -140,6 +141,9 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
+      <div className="fixed top-4 right-4 z-50">
+        <NotificationBell />
+      </div>
       <BottomNav variant="client" />
 
       <main className="mx-auto max-w-6xl responsive-page-padding pt-6 lg:px-8">

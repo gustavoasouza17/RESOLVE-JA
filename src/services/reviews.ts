@@ -10,6 +10,7 @@ import {
   updateDoc,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { createNotification } from './notifications';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -104,6 +105,22 @@ export async function createReview(data: CreateReviewData): Promise<string> {
   const docRef = await addDoc(collection(db, 'reviews'), {
     ...data,
     criadoEm: new Date().toISOString(),
+  });
+
+  let avaliadorNome = 'Alguém';
+  try {
+    const info = await getUserInfo(data.avaliadorId);
+    avaliadorNome = info.nome;
+  } catch {
+    // ignora erro na busca de nome
+  }
+
+  await createNotification({
+    destinatarioId: data.avaliadoId,
+    tipo: 'nova_avaliacao',
+    titulo: 'Você recebeu uma nova avaliação',
+    mensagem: `${avaliadorNome} avaliou você com ${data.nota} estrelas`,
+    referenciaId: docRef.id,
   });
 
   // Recalcula a média de avaliações do avaliado

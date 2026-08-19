@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import BottomNav from '../../components/organisms/BottomNav';
+import NotificationBell from '../../components/molecules/NotificationBell';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type WorkPost = {
@@ -353,6 +354,9 @@ const ProfessionalHomePage = () => {
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
+      <div className="fixed top-4 right-4 z-50">
+        <NotificationBell />
+      </div>
       <BottomNav variant="professional" onCenterAction={() => setModalOpen(true)} />
 
       <NewPostModal open={modalOpen} onClose={() => setModalOpen(false)} onPublish={handlePublish} />

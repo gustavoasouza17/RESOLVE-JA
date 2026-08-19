@@ -10,6 +10,7 @@ import {
   getDoc,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { createNotification } from './notifications';
 import type { MockProposal } from '../constants/mockProposals';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -37,6 +38,29 @@ export async function createProposal(data: CreateProposalData): Promise<string> 
     atualizadoEm: null,
     contraPropostaPrestador: null,
   });
+
+  let categoria = 'serviço';
+  try {
+    const profSnap = await getDoc(doc(db, 'professionals', data.prestadorId));
+    if (profSnap.exists()) {
+      const profData = profSnap.data() as Record<string, unknown>;
+      const cats = profData.categorias as string[] | undefined;
+      if (Array.isArray(cats) && cats.length > 0) {
+        categoria = cats[0];
+      }
+    }
+  } catch {
+    // ignora erro na busca de categoria
+  }
+
+  await createNotification({
+    destinatarioId: data.prestadorId,
+    tipo: 'nova_solicitacao',
+    titulo: 'Nova solicitação recebida',
+    mensagem: `${data.clienteNome} enviou uma solicitação de ${categoria}`,
+    referenciaId: docRef.id,
+  });
+
   return docRef.id;
 }
 

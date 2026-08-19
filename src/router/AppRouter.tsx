@@ -9,6 +9,7 @@ import RequestPage from '../pages/client/RequestPage';
 import ReviewPage from '../pages/client/ReviewPage';
 import ClientProfilePage from '../pages/client/ClientProfilePage';
 import ClientRequestsPage from '../pages/client/ClientRequestsPage';
+import NotificationsPage from '../pages/client/NotificationsPage';
 import ProfessionalHomePage from '../pages/professional/ProfessionalHomePage';
 import ProfessionalProfileEditPage from '../pages/professional/ProfessionalProfileEditPage';
 import ProfessionalRequestsPage from '../pages/professional/ProfessionalRequestsPage';
@@ -30,6 +31,7 @@ const AppRouter = () => {
         <Route path="/proposta/:profissionalId" element={<RequestPage />} />
         <Route path="/avaliar/:proposalId" element={<ReviewPage />} />
         <Route path="/solicitacoes" element={<ClientRequestsPage />} />
+        <Route path="/notificacoes" element={<NotificationsPage />} />
         <Route path="/perfil" element={<ClientProfilePage />} />
         <Route path="/prestador/home" element={<ProfessionalHomePage />} />
         <Route path="/prestador/solicitacoes" element={<ProfessionalRequestsPage />} />

@@ -38,9 +38,8 @@ const PlusIcon = () => (
 
 const ChatIcon = ({ active }: { active: boolean }) => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.8} strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 2H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14l4 4V4a2 2 0 0 0-2-2z" fill={active ? 'currentColor' : 'none'} />
-    <line x1="8" y1="9" x2="16" y2="9" stroke={active ? '#1A2B4C' : 'currentColor'} strokeWidth={1.8} />
-    <line x1="8" y1="13" x2="13" y2="13" stroke={active ? '#1A2B4C' : 'currentColor'} strokeWidth={1.8} />
+    <path d="M18 8A6 6 0 0 0 6 8c0 7 3 9 3 9h6s3-2 3-9z" />
+    <path d="M12 18a3 3 0 0 0 3-3" />
   </svg>
 );
 
@@ -73,11 +72,10 @@ const clientItems: NavItem[] = [
     matchPaths: ['/proposta'],
   },
   {
-    label: 'Mensagens',
+    label: 'Notificações',
     icon: (active: boolean) => <ChatIcon active={active} />,
-    path: '/mensagens',
-    comingSoon: true,
-    matchPaths: ['/mensagens'],
+    path: '/notificacoes',
+    matchPaths: ['/notificacoes'],
   },
   {
     label: 'Perfil',
@@ -108,11 +106,10 @@ const professionalItems: NavItem[] = [
     matchPaths: ['/prestador/perfil/editar'],
   },
   {
-    label: 'Mensagens',
+    label: 'Notificações',
     icon: (active: boolean) => <ChatIcon active={active} />,
-    path: '/mensagens',
-    comingSoon: true,
-    matchPaths: ['/mensagens'],
+    path: '/notificacoes',
+    matchPaths: ['/notificacoes'],
   },
   {
     label: 'Perfil',
