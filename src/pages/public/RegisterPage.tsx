@@ -5,6 +5,7 @@ import Input from '../../components/atoms/Input';
 import { registerWithEmail, translateError } from '../../services/auth';
 import type { AuthError } from 'firebase/auth';
 import categories from '../../constants/categories';
+import TermsOfService from '../../components/molecules/TermsOfService';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PHONE_REGEX = /^\d{11}$/;
@@ -93,6 +94,7 @@ const RegisterPage = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [isTermsOpen, setIsTermsOpen] = useState(false);
 
   const handleField = (name: keyof FormFields, value: string | boolean) => {
     setFields((prev) => ({ ...prev, [name]: value }));
@@ -414,13 +416,20 @@ const RegisterPage = () => {
                   />
                   <div className="space-y-1">
                     <label htmlFor="terms" className="text-sm text-slate-600">
-                      Aceito os termos e a política de privacidade.
+                      Li e aceito os Termos de Uso e a Política de Privacidade.{' '}
+                      <button
+                        type="button"
+                        onClick={() => setIsTermsOpen(true)}
+                        className="font-semibold text-[var(--color-primary)] hover:underline"
+                      >
+                        Ler termos
+                      </button>
                     </label>
                     {errors.terms ? <p className="text-xs text-rose-600">{errors.terms}</p> : null}
                   </div>
                 </div>
 
-                <Button type="submit" className="w-full py-4 text-base" variant="primary" disabled={isSubmitting}>
+                <Button type="submit" className="w-full py-4 text-base" variant="primary" disabled={isSubmitting || !fields.terms}>
                   {isSubmitting ? 'Cadastrando…' : 'Criar minha conta'}
                 </Button>
               </form>
@@ -434,6 +443,7 @@ const RegisterPage = () => {
             </div>
           </section>
         </div>
+        <TermsOfService open={isTermsOpen} onClose={() => setIsTermsOpen(false)} />
       </div>
     </div>
   );

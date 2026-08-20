@@ -151,6 +151,9 @@ export async function registerWithEmail(
     cidade: "",
     status: "ativo",
     criadoEm: new Date().toISOString(),
+    termosAceitos: true,
+    versaoTermos: "1.0",
+    termosAceitosEm: new Date().toISOString(),
   };
 
   await setDoc(doc(db, "users", user.uid), userData);
