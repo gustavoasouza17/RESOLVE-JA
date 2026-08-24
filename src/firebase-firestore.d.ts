@@ -240,6 +240,7 @@ declare module 'firebase/firestore' {
     onNext: (snapshot: QuerySnapshot<T>) => void,
     onError?: (error: FirestoreError) => void,
   ): () => void;
+  export function serverTimestamp(): unknown;
 
   // ─── Constraint type ─────────────────────────────────────────────────────────
   export interface QueryFilterConstraint {

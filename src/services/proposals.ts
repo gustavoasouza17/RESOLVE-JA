@@ -8,6 +8,8 @@ import {
   doc,
   updateDoc,
   getDoc,
+  onSnapshot,
+  orderBy,
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { createNotification } from './notifications';
@@ -151,4 +153,42 @@ export async function getProposalsForPrestador(
     console.warn('Erro ao buscar propostas do Firestore:', error);
     return [];
   }
+}
+
+export function subscribeToPendingProposalsForPrestador(
+  prestadorId: string,
+  callback: (proposals: MockProposal[]) => void,
+) {
+  const q = query(
+    collection(db, 'proposals'),
+    where('prestadorId', '==', prestadorId),
+    where('status', '==', 'pendente'),
+    orderBy('criadoEm', 'desc'),
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const proposals = snapshot.docs.map((docSnap) => {
+      const d = docSnap.data();
+      return {
+        id: docSnap.id,
+        clienteId: d.clienteId ?? '',
+        clienteNome: d.clienteNome ?? '',
+        prestadorId: d.prestadorId ?? '',
+        descricao: d.descricao ?? '',
+        endereco: d.endereco ?? '',
+        dataDesejada: d.dataDesejada ?? '',
+        orcamentoCliente: d.orcamentoCliente ?? 0,
+        contraPropostaPrestador: d.contraPropostaPrestador ?? undefined,
+        status: d.status ?? 'pendente',
+        criadoEm:
+          d.criadoEm instanceof Timestamp
+            ? d.criadoEm.toDate().toISOString()
+            : typeof d.criadoEm === 'string'
+              ? d.criadoEm
+              : new Date().toISOString(),
+        atualizadoEm: d.atualizadoEm ?? undefined,
+      } as MockProposal & { clienteNome?: string };
+    });
+    callback(proposals);
+  });
 }

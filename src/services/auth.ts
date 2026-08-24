@@ -14,6 +14,7 @@ import {
   query,
   where,
   getDocs,
+  serverTimestamp,
 } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
@@ -153,7 +154,7 @@ export async function registerWithEmail(
     criadoEm: new Date().toISOString(),
     termosAceitos: true,
     versaoTermos: "1.0",
-    termosAceitosEm: new Date().toISOString(),
+    termosAceitosEm: serverTimestamp(),
   };
 
   await setDoc(doc(db, "users", user.uid), userData);

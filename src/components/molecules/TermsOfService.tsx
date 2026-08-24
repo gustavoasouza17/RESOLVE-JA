@@ -27,6 +27,29 @@ Você pode solicitar o cancelamento da conta ou exclusão de dados a qualquer mo
 7. Alterações nos termos
 Podemos atualizar estes termos periodicamente. Alterações significativas serão comunicadas por meio da plataforma ou por e-mail.
 
+8. Lei Geral de Proteção de Dados (LGPD — Lei nº 13.709/2018)
+O ResolveJá está comprometido com a proteção dos seus dados pessoais, em conformidade com a LGPD.
+
+a) Dados pessoais coletados no cadastro:
+- Nome completo
+- E-mail
+- Telefone
+- CPF
+- Cidade
+
+b) Finalidade do uso dos dados:
+Os dados são utilizados exclusivamente para conectar clientes e prestadores de serviços na plataforma, autenticar usuários e permitir o funcionamento dos recursos de solicitação, avaliação e histórico de serviços.
+
+c) Direitos do titular dos dados:
+Você tem direito a:
+- Acessar seus dados pessoais a qualquer momento
+- Corrigir dados incompletos, inexatos ou desatualizados
+- Solicitar a exclusão de seus dados pessoais
+- Revogar o consentimento a qualquer momento
+
+d) Registro do consentimento:
+Seu consentimento com estes termos é registrado automaticamente no momento do cadastro, com data e hora, e pode ser consultado em seu perfil ou solicitado ao suporte.
+
 Versão 1.0 — Agosto de 2026
 `;
 

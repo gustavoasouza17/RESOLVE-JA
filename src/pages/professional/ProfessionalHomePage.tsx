@@ -1,6 +1,12 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
 import BottomNav from '../../components/organisms/BottomNav';
 import NotificationBell from '../../components/molecules/NotificationBell';
+import { subscribeToPendingProposalsForPrestador } from '../../services/proposals';
+import { auth, db } from '../../firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import type { MockProposal } from '../../constants/mockProposals';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type WorkPost = {
@@ -23,6 +29,32 @@ const getUserName = () => {
     return 'Profissional';
   }
 };
+
+function getAuthUser() {
+  try {
+    const raw = window.localStorage.getItem('resolveJaAuth');
+    if (!raw) return null;
+    return JSON.parse(raw) as { uid: string; fullName: string; profile: string };
+  } catch {
+    return null;
+  }
+}
+
+function relativeTime(dateString: string): string {
+  const now = new Date();
+  const date = new Date(dateString);
+  const diffMs = now.getTime() - date.getTime();
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSeconds < 60) return 'agora mesmo';
+  if (diffMinutes < 60) return `há ${diffMinutes} minuto${diffMinutes === 1 ? '' : 's'}`;
+  if (diffHours < 24) return `há ${diffHours} hora${diffHours === 1 ? '' : 's'}`;
+  if (diffDays < 7) return `há ${diffDays} dia${diffDays === 1 ? '' : 's'}`;
+  return date.toLocaleDateString('pt-BR');
+}
 
 // ─── New Post Modal ───────────────────────────────────────────────────────────
 type NewPostModalProps = {
@@ -336,10 +368,64 @@ const WorkPostCard = ({ post }: { post: WorkPost }) => (
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const ProfessionalHomePage = () => {
+  const navigate = useNavigate();
   const userName = getUserName();
   const [modalOpen, setModalOpen] = useState(false);
   const [posts, setPosts] = useState<WorkPost[]>([]);
   const [successToast, setSuccessToast] = useState('');
+
+  const [proposals, setProposals] = useState<MockProposal[]>([]);
+  const [loadingProposals, setLoadingProposals] = useState(true);
+  const [category, setCategory] = useState('Serviço');
+  const [uid, setUid] = useState<string | null>(null);
+
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUid(user.uid);
+      } else {
+        const stored = getAuthUser();
+        setUid(stored?.uid ?? null);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  useEffect(() => {
+    if (!uid) return;
+
+    let cancelled = false;
+    const loadCategory = async () => {
+      try {
+        const snap = await getDoc(doc(db, 'professionals', uid));
+        if (!cancelled && snap.exists()) {
+          const data = snap.data() as Record<string, unknown>;
+          const cats = data.categorias as string[] | undefined;
+          if (Array.isArray(cats) && cats.length > 0) {
+            setCategory(cats[0]);
+          }
+        }
+      } catch {
+        // ignora erro na busca de categoria
+      }
+    };
+
+    loadCategory();
+    return () => {
+      cancelled = true;
+    };
+  }, [uid]);
+
+  useEffect(() => {
+    if (!uid) return;
+
+    const unsubscribe = subscribeToPendingProposalsForPrestador(uid, (items) => {
+      setProposals(items);
+      setLoadingProposals(false);
+    });
+
+    return unsubscribe;
+  }, [uid]);
 
   const handlePublish = (data: Omit<WorkPost, 'id' | 'createdAt'>) => {
     const newPost: WorkPost = {
@@ -385,6 +471,71 @@ const ProfessionalHomePage = () => {
 
         <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
           <section className="space-y-6">
+            <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
+              <div className="flex items-center justify-between gap-4 mb-6">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Solicitações em aberto</p>
+                  <p className="mt-1 text-sm text-slate-600">
+                    {proposals.length > 0
+                      ? `${proposals.length} nova${proposals.length === 1 ? '' : 's'} solicitação${proposals.length === 1 ? '' : 'ões'} aguardando resposta.`
+                      : 'Acompanhe suas solicitações pendentes.'}
+                  </p>
+                </div>
+              </div>
+
+              {loadingProposals ? (
+                <div className="flex flex-col items-center justify-center gap-3 rounded-[28px] bg-[var(--color-bg-light)] p-10 text-center">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
+                  <p className="text-sm text-slate-600">Carregando solicitações…</p>
+                </div>
+              ) : proposals.length === 0 ? (
+                <div className="rounded-[28px] bg-[var(--color-bg-light)] p-10 text-center text-sm text-slate-600">
+                  Nenhuma solicitação em aberto no momento.
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {proposals.map((proposal) => (
+                    <button
+                      key={proposal.id}
+                      onClick={() => navigate(`/prestador/proposta/${proposal.id}`)}
+                      className="w-full rounded-3xl border border-slate-200 p-6 text-left transition hover:shadow-md"
+                    >
+                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <span style={{
+                              fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                              background: 'var(--color-primary)', color: 'var(--color-navy)', borderRadius: 999,
+                              padding: '3px 10px',
+                            }}>
+                              {category}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                              {relativeTime(proposal.criadoEm)}
+                            </span>
+                          </div>
+                          <p className="font-semibold text-lg text-[var(--color-navy)]">
+                            {proposal.clienteNome || `Cliente ${proposal.clienteId.replace('client', '')}`}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-600">
+                            {proposal.descricao}
+                          </p>
+                          {proposal.endereco && (
+                            <p className="mt-2 text-xs text-slate-400">📍 {proposal.endereco}</p>
+                          )}
+                        </div>
+                        <div className="space-y-1 text-left sm:text-right">
+                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Orçamento</p>
+                          <p className="text-xl font-bold text-[var(--color-navy)]">
+                            R$ {proposal.orcamentoCliente.toLocaleString('pt-BR')}
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {/* Trabalhos publicados */}
             {posts.length > 0 && (
