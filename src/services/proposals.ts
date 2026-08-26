@@ -25,6 +25,7 @@ export type CreateProposalData = {
   endereco: string;
   dataDesejada: string;
   orcamentoCliente: number;
+  categoria?: string;
 };
 
 // ─── Create ───────────────────────────────────────────────────────────────────
@@ -190,5 +191,51 @@ export function subscribeToPendingProposalsForPrestador(
       } as MockProposal & { clienteNome?: string };
     });
     callback(proposals);
+  });
+}
+
+export function subscribeToOpenProposalsForCategory(
+  category: string,
+  callback: (proposals: MockProposal[]) => void,
+) {
+  const q = query(
+    collection(db, 'proposals'),
+    where('categoria', '==', category),
+    where('status', '==', 'pendente'),
+    orderBy('criadoEm', 'desc'),
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const proposals = snapshot.docs.map((docSnap) => {
+      const d = docSnap.data();
+      return {
+        id: docSnap.id,
+        clienteId: d.clienteId ?? '',
+        clienteNome: d.clienteNome ?? '',
+        prestadorId: d.prestadorId ?? '',
+        descricao: d.descricao ?? '',
+        endereco: d.endereco ?? '',
+        dataDesejada: d.dataDesejada ?? '',
+        orcamentoCliente: d.orcamentoCliente ?? 0,
+        contraPropostaPrestador: d.contraPropostaPrestador ?? undefined,
+        status: d.status ?? 'pendente',
+        criadoEm:
+          d.criadoEm instanceof Timestamp
+            ? d.criadoEm.toDate().toISOString()
+            : typeof d.criadoEm === 'string'
+              ? d.criadoEm
+              : new Date().toISOString(),
+        atualizadoEm: d.atualizadoEm ?? undefined,
+      } as MockProposal & { clienteNome?: string };
+    });
+    callback(proposals);
+  });
+}
+
+export async function claimProposal(proposalId: string, prestadorId: string): Promise<void> {
+  const ref = doc(db, 'proposals', proposalId);
+  await updateDoc(ref, {
+    prestadorId,
+    atualizadoEm: new Date().toISOString(),
   });
 }

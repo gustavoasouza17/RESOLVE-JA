@@ -32,12 +32,25 @@ const RequestPage = () => {
       mockProfessionals[0],
   );
 
+  const [description, setDescription] = useState('');
+  const [address, setAddress] = useState('');
+  const [date, setDate] = useState('');
+  const [budget, setBudget] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState(false);
+  const [isOpenRequest, setIsOpenRequest] = useState(false);
+  const [category, setCategory] = useState('');
+
   useEffect(() => {
     if (!profissionalId) return;
 
     const mockProfessional = mockProfessionals.find((p) => p.uid === profissionalId);
     if (mockProfessional) {
       setProfessional(mockProfessional);
+      if (mockProfessional.categorias?.[0]) {
+        setCategory(mockProfessional.categorias[0]);
+      }
       return;
     }
 
@@ -76,6 +89,9 @@ const RequestPage = () => {
           status: (data.status as 'ativo' | 'inativo') ?? 'ativo',
           criadoEm: (data.criadoEm as string) ?? new Date().toISOString(),
         });
+        if (Array.isArray(data.categorias) && data.categorias.length > 0) {
+          setCategory(data.categorias[0]);
+        }
       } catch (error) {
         console.error('Erro ao buscar prestador para a proposta:', error);
       }
@@ -87,14 +103,6 @@ const RequestPage = () => {
       cancelled = true;
     };
   }, [profissionalId]);
-
-  const [description, setDescription] = useState('');
-  const [address, setAddress] = useState('');
-  const [date, setDate] = useState('');
-  const [budget, setBudget] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -113,7 +121,8 @@ const RequestPage = () => {
 
     setSubmitting(true);
     try {
-      const targetProfessionalId = professional?.uid ?? profissionalId ?? mockProfessionals[0].uid;
+      const targetProfessionalId = isOpenRequest ? '' : (professional?.uid ?? profissionalId ?? mockProfessionals[0].uid);
+      const targetCategory = isOpenRequest ? category : (professional?.categorias?.[0] ?? '');
 
       await createProposal({
         prestadorId: targetProfessionalId,
@@ -123,6 +132,7 @@ const RequestPage = () => {
         endereco: address.trim(),
         dataDesejada: date,
         orcamentoCliente: Number(budget),
+        categoria: targetCategory,
       });
       setSuccess(true);
       // Redireciona para home com flag de sucesso após 1.5s
@@ -217,9 +227,28 @@ const RequestPage = () => {
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="text-sm text-slate-500">
-                  Todas as propostas são enviadas diretamente ao prestador.
-                </p>
+                <div className="flex items-center gap-4">
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <input
+                      type="radio"
+                      name="requestType"
+                      checked={!isOpenRequest}
+                      onChange={() => setIsOpenRequest(false)}
+                      className="h-4 w-4 rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                    />
+                    Enviar para este profissional
+                  </label>
+                  <label className="flex items-center gap-2 text-sm text-slate-600">
+                    <input
+                      type="radio"
+                      name="requestType"
+                      checked={isOpenRequest}
+                      onChange={() => setIsOpenRequest(true)}
+                      className="h-4 w-4 rounded border-slate-300 text-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                    />
+                    Publicar como pedido aberto
+                  </label>
+                </div>
                 <Button type="submit" variant="primary" disabled={submitting || success}>
                   {submitting ? 'Enviando…' : 'Enviar proposta'}
                 </Button>

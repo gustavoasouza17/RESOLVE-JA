@@ -3,7 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import BottomNav from '../../components/organisms/BottomNav';
 import NotificationBell from '../../components/molecules/NotificationBell';
-import { subscribeToPendingProposalsForPrestador } from '../../services/proposals';
+import {
+  subscribeToPendingProposalsForPrestador,
+  subscribeToOpenProposalsForCategory,
+  claimProposal,
+} from '../../services/proposals';
 import { auth, db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { MockProposal } from '../../constants/mockProposals';
@@ -375,9 +379,11 @@ const ProfessionalHomePage = () => {
   const [successToast, setSuccessToast] = useState('');
 
   const [proposals, setProposals] = useState<MockProposal[]>([]);
+  const [openProposals, setOpenProposals] = useState<MockProposal[]>([]);
   const [loadingProposals, setLoadingProposals] = useState(true);
   const [category, setCategory] = useState('Serviço');
   const [uid, setUid] = useState<string | null>(null);
+  const [claimingId, setClaimingId] = useState<string | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -419,13 +425,38 @@ const ProfessionalHomePage = () => {
   useEffect(() => {
     if (!uid) return;
 
-    const unsubscribe = subscribeToPendingProposalsForPrestador(uid, (items) => {
+    const unsubscribeDirect = subscribeToPendingProposalsForPrestador(uid, (items) => {
       setProposals(items);
       setLoadingProposals(false);
     });
 
-    return unsubscribe;
+    return unsubscribeDirect;
   }, [uid]);
+
+  useEffect(() => {
+    if (!uid || !category) return;
+
+    const unsubscribeOpen = subscribeToOpenProposalsForCategory(category, (items) => {
+      setOpenProposals(items);
+    });
+
+    return unsubscribeOpen;
+  }, [uid, category]);
+
+  const handleClaim = async (proposal: MockProposal) => {
+    if (!uid) return;
+    setClaimingId(proposal.id);
+    try {
+      await claimProposal(proposal.id, uid);
+    } catch {
+      // erro silencioso — usuário verá que não mudou
+    } finally {
+      setClaimingId(null);
+    }
+  };
+
+  const allProposals = [...proposals, ...openProposals]
+    .sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime());
 
   const handlePublish = (data: Omit<WorkPost, 'id' | 'createdAt'>) => {
     const newPost: WorkPost = {
@@ -488,51 +519,75 @@ const ProfessionalHomePage = () => {
                   <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
                   <p className="text-sm text-slate-600">Carregando solicitações…</p>
                 </div>
-              ) : proposals.length === 0 ? (
+              ) : allProposals.length === 0 ? (
                 <div className="rounded-[28px] bg-[var(--color-bg-light)] p-10 text-center text-sm text-slate-600">
                   Nenhuma solicitação em aberto no momento.
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {proposals.map((proposal) => (
-                    <button
-                      key={proposal.id}
-                      onClick={() => navigate(`/prestador/proposta/${proposal.id}`)}
-                      className="w-full rounded-3xl border border-slate-200 p-6 text-left transition hover:shadow-md"
-                    >
-                      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <span style={{
-                              fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-                              background: 'var(--color-primary)', color: 'var(--color-navy)', borderRadius: 999,
-                              padding: '3px 10px',
-                            }}>
-                              {category}
-                            </span>
-                            <span className="text-xs text-slate-500">
-                              {relativeTime(proposal.criadoEm)}
-                            </span>
+                  {allProposals.map((proposal) => {
+                    const isDirect = !!proposal.prestadorId;
+                    return (
+                      <div
+                        key={proposal.id}
+                        className="w-full rounded-3xl border border-slate-200 p-6 text-left transition hover:shadow-md"
+                      >
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3 mb-2">
+                              <span style={{
+                                fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+                                background: isDirect ? 'var(--color-primary)' : '#10b981',
+                                color: 'var(--color-navy)',
+                                borderRadius: 999,
+                                padding: '3px 10px',
+                              }}>
+                                {isDirect ? 'Direta para você' : 'Aberta na sua categoria'}
+                              </span>
+                              <span className="text-xs text-slate-500">
+                                {relativeTime(proposal.criadoEm)}
+                              </span>
+                            </div>
+                            <p className="font-semibold text-lg text-[var(--color-navy)]">
+                              {proposal.clienteNome || `Cliente ${proposal.clienteId.replace('client', '')}`}
+                            </p>
+                            <p className="mt-1 text-sm text-slate-600">
+                              {proposal.descricao}
+                            </p>
+                            {proposal.endereco && (
+                              <p className="mt-2 text-xs text-slate-400">📍 {proposal.endereco}</p>
+                            )}
                           </div>
-                          <p className="font-semibold text-lg text-[var(--color-navy)]">
-                            {proposal.clienteNome || `Cliente ${proposal.clienteId.replace('client', '')}`}
-                          </p>
-                          <p className="mt-1 text-sm text-slate-600">
-                            {proposal.descricao}
-                          </p>
-                          {proposal.endereco && (
-                            <p className="mt-2 text-xs text-slate-400">📍 {proposal.endereco}</p>
-                          )}
-                        </div>
-                        <div className="space-y-1 text-left sm:text-right">
-                          <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Orçamento</p>
-                          <p className="text-xl font-bold text-[var(--color-navy)]">
-                            R$ {proposal.orcamentoCliente.toLocaleString('pt-BR')}
-                          </p>
+                          <div className="space-y-1 text-left sm:text-right">
+                            <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Orçamento</p>
+                            <p className="text-xl font-bold text-[var(--color-navy)]">
+                              R$ {proposal.orcamentoCliente.toLocaleString('pt-BR')}
+                            </p>
+                            <div className="mt-3 flex flex-col gap-2 sm:items-end">
+                              {isDirect ? (
+                                <button
+                                  type="button"
+                                  onClick={() => navigate(`/prestador/proposta/${proposal.id}`)}
+                                  className="inline-flex items-center gap-1 rounded-2xl bg-[var(--color-navy)] px-4 py-2 text-sm font-bold text-white shadow-sm transition hover:brightness-110"
+                                >
+                                  Ver detalhes
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => handleClaim(proposal)}
+                                  disabled={claimingId === proposal.id}
+                                  className="inline-flex items-center gap-1 rounded-2xl bg-[var(--color-primary)] px-4 py-2 text-sm font-bold text-[var(--color-navy)] shadow-sm transition hover:brightness-95 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                  {claimingId === proposal.id ? 'Assumindo…' : 'Assumir atendimento'}
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
                       </div>
-                    </button>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

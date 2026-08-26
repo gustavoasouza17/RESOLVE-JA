@@ -129,6 +129,7 @@
 | S11 | `/prestador/perfil` | ProfessionalProfileEditScreen | Prestador | Edição de perfil, portfólio e disponibilidade |
 | S12 | `/prestador/proposta/:proposalId` | ProposalScreen | Prestador | Visualização e resposta a proposta recebida |
 | S13 | `/admin` | AdminDashboardScreen | Administrador | Painel de controle; acesso via botão "Acesso Admin" na navbar |
+| S14 | `/notificacoes` | NotificationsScreen | Cliente / Prestador | Lista de notificações do usuário com marcação de lida e navegação para referência |
 
 ```
 resolve-ja/
@@ -153,6 +154,7 @@ resolve-ja/
 │   │   │   └── ProposalPage.tsx          # S12
 │   │   └── admin/
 │   │       └── AdminDashboardPage.tsx    # S13
+│   │   └── NotificationsPage.tsx         # S14 (compartilhada)
 │   ├── components/
 │   │   ├── atoms/
 │   │   │   ├── Button.tsx
@@ -370,14 +372,23 @@ resolve-ja/
 
 | Elemento | Tipo | Comportamento / Validação |
 |---|---|---|
-| Navbar com avatar | Organism | Avatar + nome + atalho para S11 |
-| Seção "Novas Oportunidades" | H2 | [mockup only — confirmar label] |
-| Feed de propostas recebidas | ProposalCard list | Nome do cliente, descrição do serviço, orçamento sugerido, botão de ação; badge com não lidas |
-| Clientes próximos buscando o serviço | Card list | Clientes com demanda na categoria do prestador [texto only — confirmar] |
-| Resumo de desempenho | StatsCard | "Desempenho Semanal: R$ 4.250 | 12 serviços | 85% satisfação" [mockup only — confirmar] |
-| Banner premium | BannerCard | "Oportunidade Premium — Visibilidade Elite" [mockup only] |
+| Ícone de sino | IconButton + Badge | Acessa `/notificacoes`; badge mostra contagem de notificações não lidas em tempo real (`onSnapshot`) |
+| Feed de solicitações em aberto | ProposalCard list unificado | Combina solicitações diretas e abertas na categoria do prestador, ordenadas por `criadoEm` decrescente |
+| Tag "Direta para você" | Badge | Amarelo; proposta endereçada especificamente ao prestador logado (`prestadorId === uid`) |
+| Tag "Aberta na sua categoria" | Badge | Verde; proposta sem prestador específico, filtrada pela categoria de atuação do prestador |
+| Ação "Ver detalhes" | Button | Apenas solicitações diretas; navega para `/prestador/proposta/:id` |
+| Ação "Assumir atendimento" | Button | Apenas solicitações abertas; grava `prestadorId = uid` no documento da proposta |
+| Seção "Meus trabalhos publicados" | WorkPostCard grid | Publicações locais do prestador (mockup) |
+| Estado loading | Spinner | Exibido durante carregamento inicial do feed |
+| Estado vazio | Texto | "Nenhuma solicitação em aberto no momento." |
+| Tratamento de erro | Inline error | Mensagem de erro caso a busca falhe |
 
-- Edge case: nenhuma proposta → "Seu perfil está ativo. Aguarde novas solicitações."
+- Tipos de solicitação exibidos:
+  - **Diretas**: `proposals` onde `prestadorId == uid` e `status === "pendente"`
+  - **Abertas**: `proposals` onde `prestadorId` está vazio/nulo, `status === "pendente"` e `categoria` corresponde à categoria do prestador
+- Atualização em tempo real: feed atualizado via `onSnapshot` tanto para solicitações diretas quanto para abertas
+- Ao assumir uma solicitação aberta, ela deixa de aparecer para outros prestadores da mesma categoria
+- Edge case: nenhuma proposta → "Nenhuma solicitação em aberto no momento."
 
 ---
 
@@ -431,6 +442,27 @@ resolve-ja/
 
 - Edge case: suspender conta já suspensa → botão desabilitado
 - Nota: layout admin pode ser desktop-first (sidebar lateral) — confirmar com o time
+
+---
+
+### S14 — NotificationsScreen
+
+| Elemento | Tipo | Comportamento / Validação |
+|---|---|---|
+| Rota | `/notificacoes` | Acessível para cliente e prestador autenticado |
+| Lista de notificações | NotificationCard list | Título, mensagem, tempo relativo (ex.: "há 2 horas"), indicador visual de não lida |
+| Indicador de não lida | Badge / dot | Bolinha colorida ou fundo diferenciado quando `lida === false` |
+| Ação ao clicar | Navegação | Marca `lida = true` e navega para a referência (`referenciaId`) |
+| Estado vazio | Texto | "Nenhuma notificação por enquanto." |
+
+- Tipos de notificação suportados:
+  - `nova_solicitacao` — criada automaticamente ao enviar proposta
+  - `nova_avaliacao` — criada automaticamente ao receber avaliação
+  - `proposta_recusada` — criada automaticamente ao recusar proposta
+- Atualização em tempo real: lista e badge são atualizados via `onSnapshot` na coleção `notifications` filtrada por `destinatarioId`
+- Navegação por tipo:
+  - `nova_solicitacao` → `/prestador/proposta/:referenciaId` (prestador) ou `/proposta/:referenciaId` (cliente)
+  - `nova_avaliacao` e `proposta_recusada` → `/prestador/solicitacoes` (prestador) ou `/solicitacoes` (cliente)
 
 ---
 
@@ -527,6 +559,20 @@ resolve-ja/
 ```
 
 ```json
+// Coleção: notifications
+{
+  "id": "not001",
+  "destinatarioId": "def456",
+  "tipo": "nova_solicitacao",
+  "titulo": "Nova solicitação recebida",
+  "mensagem": "João enviou uma solicitação de Pedreiro",
+  "referenciaId": "prop789",
+  "lida": false,
+  "criadoEm": "2026-02-05T14:30:00Z"
+}
+```
+
+```json
 // Coleção: categories
 {
   "id": "cat01",
@@ -578,6 +624,21 @@ resolve-ja/
 25. O administrador pode suspender ou excluir contas
 26. Contas suspensas não conseguem fazer login
 27. O administrador pode gerenciar (adicionar, editar, desativar) categorias
+
+### Notificações
+28. O sistema deve criar notificação automática ao receber nova proposta (tipo `nova_solicitacao`)
+29. O sistema deve criar notificação automática ao receber nova avaliação (tipo `nova_avaliacao`)
+30. O sistema deve criar notificação automática ao recusar uma proposta (tipo `proposta_recusada`)
+31. As notificações devem ser exibidas na tela `/notificacoes` com título, mensagem, tempo relativo e indicador de não lida
+32. Ao clicar em uma notificação, o sistema deve marcá-la como lida e navegar para a referência correspondente
+33. O ícone de sino nas telas autenticadas deve exibir badge com contagem de notificações não lidas em tempo real
+
+### Feed de Solicitações do Prestador
+34. A HomePage do prestador deve exibir um feed unificado de solicitações pendentes
+35. O feed deve incluir solicitações diretas (`prestadorId === uid`) e solicitações abertas (`prestadorId` vazio e `categoria` compatível)
+36. Solicitações abertas devem ser filtradas pela categoria de atuação do prestador
+37. O prestador pode assumir uma solicitação aberta, gravando seu `uid` no campo `prestadorId`
+38. O feed deve atualizar em tempo real via `onSnapshot` na coleção `proposals`
 
 ---
 
