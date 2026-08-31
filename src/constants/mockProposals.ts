@@ -8,7 +8,7 @@ export type MockProposal = {
   dataDesejada: string;
   orcamentoCliente: number;
   contraPropostaPrestador?: number;
-  status: 'pendente' | 'aceita' | 'recusada' | 'concluido';
+  status: 'pendente' | 'aceita' | 'em_andamento' | 'recusada' | 'concluido';
   criadoEm: string;
   atualizadoEm?: string;
 };

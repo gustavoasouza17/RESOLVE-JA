@@ -71,34 +71,72 @@ const ProfessionalProfilePage = () => {
   }, [profileId]);
 
   const professional = profileId ? mockProfessionals.find((item) => item.uid === profileId) : null;
-  const ownerFallbackProfessional =
-    !professional && authUser?.profile === 'prestador'
-      ? {
-          uid: authUser.uid ?? 'prestador-atual',
-          nome: authUser.fullName,
-          fotoUrl: '',
-          categorias: authUser.category ? [authUser.category] : ['Prestador'],
-          bio: 'Perfil do prestador cadastrado. Atualize seus serviços e disponibilidade.',
-          totalServicos: 0,
-          totalAvaliacoes: 0,
-          avaliacaoMedia: 0,
-          valorDiaria: 'Sob consulta',
-          bairrosAtendimento: authUser.city ? [authUser.city] : ['Localidade'],
-          disponibilidade: {
-            segunda: [],
-            terca: [],
-            quarta: [],
-            quinta: [],
-            sexta: [],
-            sabado: [],
-            domingo: [],
-          },
-          portfolio: [],
-          whatsapp: authUser.phone ?? '',
-        }
-      : null;
-
-  const selectedProfessional = dbProfessional ?? professional ?? ownerFallbackProfessional ?? mockProfessionals[0];
+  
+  const getProfessionalData = () => {
+    // Se houver dados do Firestore, usar em prioritário
+    if (dbProfessional) {
+      return {
+        uid: profileId,
+        nome: dbProfessional.nome || authUser?.fullName || 'Profissional',
+        fotoUrl: dbProfessional.fotoUrl || '',
+        categorias: dbProfessional.categorias || (authUser?.category ? [authUser.category] : ['Prestador']),
+        bio: dbProfessional.bio || 'Perfil do prestador cadastrado.',
+        totalServicos: dbProfessional.totalServicos || 0,
+        totalAvaliacoes: dbProfessional.totalAvaliacoes || 0,
+        avaliacaoMedia: dbProfessional.avaliacaoMedia ?? 0, // Importante: use a nota do Firestore
+        valorDiaria: dbProfessional.valorDiaria || 'Sob consulta',
+        bairrosAtendimento: dbProfessional.bairrosAtendimento || (authUser?.city ? [authUser.city] : ['Localidade']),
+        disponibilidade: dbProfessional.disponibilidade || {
+          segunda: [],
+          terca: [],
+          quarta: [],
+          quinta: [],
+          sexta: [],
+          sabado: [],
+          domingo: [],
+        },
+        portfolio: dbProfessional.portfolio || [],
+        whatsapp: dbProfessional.whatsapp || (authUser?.phone ?? ''),
+      };
+    }
+    
+    // Se encontrar nos mocks, usar
+    if (professional) {
+      return professional;
+    }
+    
+    // Se for proprietário (prestador visualizando seu próprio perfil), usar fallback
+    if (!professional && authUser?.profile === 'prestador') {
+      return {
+        uid: authUser.uid ?? 'prestador-atual',
+        nome: authUser.fullName,
+        fotoUrl: '',
+        categorias: authUser.category ? [authUser.category] : ['Prestador'],
+        bio: 'Perfil do prestador cadastrado. Atualize seus serviços e disponibilidade.',
+        totalServicos: 0,
+        totalAvaliacoes: 0,
+        avaliacaoMedia: 0,
+        valorDiaria: 'Sob consulta',
+        bairrosAtendimento: authUser.city ? [authUser.city] : ['Localidade'],
+        disponibilidade: {
+          segunda: [],
+          terca: [],
+          quarta: [],
+          quinta: [],
+          sexta: [],
+          sabado: [],
+          domingo: [],
+        },
+        portfolio: [],
+        whatsapp: authUser.phone ?? '',
+      };
+    }
+    
+    // Fallback final
+    return mockProfessionals[0];
+  };
+  
+  const selectedProfessional = getProfessionalData();
   const isOwner = authUser?.profile === 'prestador' && (!id || authUser?.uid === selectedProfessional.uid);
 
   const handleLogout = async () => {

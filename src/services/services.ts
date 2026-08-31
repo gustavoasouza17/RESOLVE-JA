@@ -38,6 +38,8 @@ function getStatusLabel(status: string): string {
       return 'Pendente';
     case 'aceita':
       return 'Aceita';
+    case 'em_andamento':
+      return 'Em andamento';
     case 'concluido':
       return 'Concluída';
     case 'recusada':

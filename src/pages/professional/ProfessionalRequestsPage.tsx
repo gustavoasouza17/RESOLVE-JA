@@ -9,7 +9,7 @@ import { deleteProposalById } from '../../services/services';
 
 type ProposalBadgeVariant = 'success' | 'default' | 'danger';
 
-type FilterType = 'todas' | 'pendente' | 'aceita' | 'recusada' | 'concluido';
+type FilterType = 'todas' | 'pendente' | 'aceita' | 'em_andamento' | 'recusada' | 'concluido';
 
 // ─── Helper: lê o usuário logado do localStorage ──────────────────────────────
 function getAuthUser() {
@@ -58,6 +58,7 @@ const ProfessionalRequestsPage = () => {
 
   const pendingCount = allProposals.filter((p) => p.status === 'pendente').length;
   const acceptedCount = allProposals.filter((p) => p.status === 'aceita').length;
+  const inProgressCount = allProposals.filter((p) => p.status === 'em_andamento').length;
 
   const getStatusBadge = (status: MockProposal['status']): { label: string; variant: ProposalBadgeVariant } => {
     switch (status) {
@@ -65,6 +66,8 @@ const ProfessionalRequestsPage = () => {
         return { label: 'Nova', variant: 'success' };
       case 'aceita':
         return { label: 'Aceita', variant: 'default' };
+      case 'em_andamento':
+        return { label: 'Em andamento', variant: 'default' };
       case 'concluido':
         return { label: 'Concluída', variant: 'success' };
       case 'recusada':
@@ -94,6 +97,7 @@ const ProfessionalRequestsPage = () => {
             <div className="flex flex-wrap items-center gap-2">
               <Badge variant="success" label={`${pendingCount} novas`} />
               <Badge variant="default" label={`${acceptedCount} aceitas`} />
+              <Badge variant="default" label={`${inProgressCount} em andamento`} />
             </div>
           </div>
         </header>
@@ -132,6 +136,17 @@ const ProfessionalRequestsPage = () => {
             }`}
           >
             Aceitas ({acceptedCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setFilter('em_andamento')}
+            className={`rounded-2xl px-5 py-2.5 text-sm font-semibold transition ${
+              filter === 'em_andamento'
+                ? 'bg-purple-600 text-white shadow-md'
+                : 'bg-white text-slate-600 hover:bg-slate-100 ring-1 ring-slate-200'
+            }`}
+          >
+            Em andamento ({inProgressCount})
           </button>
           <button
             type="button"

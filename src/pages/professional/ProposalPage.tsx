@@ -24,7 +24,9 @@ const ProposalPage = () => {
   const navigate = useNavigate();
   const [proposal, setProposal] = useState<MockProposal | null>(null);
   const [loading, setLoading] = useState(true);
+  const [accepting, setAccepting] = useState(false);
   const [rejecting, setRejecting] = useState(false);
+  const [starting, setStarting] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -85,6 +87,74 @@ const ProposalPage = () => {
     } catch {
       setError('Não foi possível recusar a proposta. Tente novamente.');
       setRejecting(false);
+    }
+  };
+
+  const handleAccept = async () => {
+    if (!proposalId) return;
+
+    setAccepting(true);
+    setError('');
+
+    try {
+      await updateProposalStatus(proposalId, 'aceita');
+
+      if (proposal) {
+        const authUser = getAuthUser();
+        let categoria = 'serviço';
+        try {
+          const profSnap = await getDoc(doc(db, 'professionals', proposal.prestadorId));
+          if (profSnap.exists()) {
+            const data = profSnap.data() as Record<string, unknown>;
+            const cats = data.categorias as string[] | undefined;
+            if (Array.isArray(cats) && cats.length > 0) {
+              categoria = cats[0];
+            }
+          }
+        } catch {
+          // ignora erro na busca de categoria
+        }
+
+        await createNotification({
+          destinatarioId: proposal.clienteId,
+          tipo: 'proposta_aceita',
+          titulo: 'Sua proposta foi aceita',
+          mensagem: `${authUser?.fullName || 'O prestador'} aceitou sua solicitação de ${categoria}`,
+          referenciaId: proposalId,
+        });
+      }
+
+      setProposal((prev) => prev ? { ...prev, status: 'aceita' } : null);
+    } catch {
+      setError('Não foi possível aceitar a proposta. Tente novamente.');
+      setAccepting(false);
+    }
+  };
+
+  const handleStartService = async () => {
+    if (!proposalId) return;
+
+    setStarting(true);
+    setError('');
+
+    try {
+      await updateProposalStatus(proposalId, 'em_andamento');
+
+      if (proposal) {
+        const authUser = getAuthUser();
+        await createNotification({
+          destinatarioId: proposal.clienteId,
+          tipo: 'servico_iniciado',
+          titulo: 'Serviço iniciado',
+          mensagem: `${authUser?.fullName || 'O prestador'} iniciou o serviço solicitado`,
+          referenciaId: proposalId,
+        });
+      }
+
+      setProposal((prev) => prev ? { ...prev, status: 'em_andamento' } : null);
+    } catch {
+      setError('Não foi possível iniciar o serviço. Tente novamente.');
+      setStarting(false);
     }
   };
 
@@ -165,10 +235,42 @@ const ProposalPage = () => {
                   </div>
                 )}
                 <div className="mt-6 space-y-3">
-                  <Button fullWidth variant="primary">Aceitar e chamar no WhatsApp</Button>
-                  <Button fullWidth variant="secondary" onClick={handleReject} disabled={rejecting}>
-                    {rejecting ? 'Recusando…' : 'Recusar proposta'}
-                  </Button>
+                  {proposal.status === 'pendente' && (
+                    <>
+                      <Button fullWidth variant="primary" onClick={handleAccept} disabled={accepting}>
+                        {accepting ? 'Aceitando…' : 'Aceitar e chamar no WhatsApp'}
+                      </Button>
+                      <Button fullWidth variant="secondary" onClick={handleReject} disabled={rejecting}>
+                        {rejecting ? 'Recusando…' : 'Recusar proposta'}
+                      </Button>
+                    </>
+                  )}
+                  {proposal.status === 'aceita' && (
+                    <>
+                      <Button fullWidth variant="primary" onClick={handleStartService} disabled={starting}>
+                        {starting ? 'Iniciando…' : 'Iniciar Serviço'}
+                      </Button>
+                      <p className="text-xs text-slate-500 text-center mt-2">Clique para marcar como em andamento</p>
+                    </>
+                  )}
+                  {proposal.status === 'em_andamento' && (
+                    <div className="rounded-2xl bg-blue-50 p-4 text-center">
+                      <p className="text-sm font-semibold text-blue-900">✓ Serviço em andamento</p>
+                      <p className="text-xs text-blue-700 mt-1">O cliente será notificado quando você marcar como concluído</p>
+                    </div>
+                  )}
+                  {proposal.status === 'concluido' && (
+                    <div className="rounded-2xl bg-green-50 p-4 text-center">
+                      <p className="text-sm font-semibold text-green-900">✓ Serviço concluído</p>
+                      <p className="text-xs text-green-700 mt-1">Aguardando avaliação do cliente</p>
+                    </div>
+                  )}
+                  {proposal.status === 'recusada' && (
+                    <div className="rounded-2xl bg-red-50 p-4 text-center">
+                      <p className="text-sm font-semibold text-red-900">✗ Proposta recusada</p>
+                      <p className="text-xs text-red-700 mt-1">Esta proposta foi recusada</p>
+                    </div>
+                  )}
                 </div>
               </div>
 

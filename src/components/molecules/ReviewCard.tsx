@@ -38,7 +38,7 @@ const ReviewCard = ({
         <span className="text-sm font-semibold text-slate-700">{rating.toFixed(1)}</span>
       </div>
 
-      <p className="mt-4 text-sm leading-6 text-slate-600">{comment}</p>
+      {comment && <p className="mt-4 text-sm leading-6 text-slate-600">{comment}</p>}
     </article>
   );
 };

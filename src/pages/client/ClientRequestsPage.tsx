@@ -12,6 +12,7 @@ import {
   type ServiceHistoryItem,
   type RecommendedProfessional,
 } from '../../services/services';
+import { updateProposalStatus } from '../../services/proposals';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,6 +25,8 @@ function getStatusVariant(status: string): StatusVariant {
     case 'Concluída':
     case 'Aceita':
       return 'success';
+    case 'Em andamento':
+      return 'warning';
     case 'Pendente':
       return 'warning';
     case 'Recusada':
@@ -82,6 +85,7 @@ const ClientRequestsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -138,6 +142,25 @@ const ClientRequestsPage = () => {
       setError('Não foi possível excluir esta proposta. Tente novamente.');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleMarkAsCompleted = async (proposalId: string) => {
+    setCompletingId(proposalId);
+    setError('');
+
+    try {
+      await updateProposalStatus(proposalId, 'concluido');
+      setHistoryItems((current) =>
+        current.map((item) =>
+          item.id === proposalId ? { ...item, status: 'Concluída' } : item,
+        ),
+      );
+    } catch (err) {
+      console.error('Erro ao marcar proposta como concluída:', err);
+      setError('Não foi possível marcar como concluída. Tente novamente.');
+    } finally {
+      setCompletingId(null);
     }
   };
 
@@ -209,6 +232,19 @@ const ClientRequestsPage = () => {
                         <div className="flex items-center gap-3">
                           <StatusBadge label={item.status} variant={getStatusVariant(item.status)} />
 
+                          {item.status === 'Em andamento' && (
+                            <button
+                              type="button"
+                              aria-label={`Marcar ${item.service} como concluído`}
+                              onClick={() => handleMarkAsCompleted(item.id)}
+                              disabled={completingId === item.id}
+                              className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 text-white px-3 py-1.5 text-xs font-semibold transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
+                              title="Marcar como concluído"
+                            >
+                              {completingId === item.id ? 'Concluindo…' : '✓ Concluir'}
+                            </button>
+                          )}
+
                           {item.status === 'Recusada' && (
                             <button
                               type="button"
@@ -225,7 +261,7 @@ const ClientRequestsPage = () => {
                           )}
                         </div>
                       </div>
-                      {item.status === 'Concluído' && (
+                      {item.status === 'Concluída' && (
                         <div className="mt-4 flex justify-end">
                           <Link
                             to={`/avaliar/${item.id}`}

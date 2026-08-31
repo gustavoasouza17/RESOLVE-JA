@@ -69,7 +69,7 @@ export async function createProposal(data: CreateProposalData): Promise<string> 
 
 export async function updateProposalStatus(
   proposalId: string,
-  status: 'pendente' | 'aceita' | 'recusada' | 'concluido',
+  status: 'pendente' | 'aceita' | 'em_andamento' | 'recusada' | 'concluido',
 ): Promise<void> {
   const ref = doc(db, 'proposals', proposalId);
   await updateDoc(ref, {
