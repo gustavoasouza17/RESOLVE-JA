@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
 import OnboardingPage from '../pages/public/OnboardingPage';
 import LoginPage from '../pages/public/LoginPage';
 import RegisterPage from '../pages/public/RegisterPage';
@@ -19,7 +19,7 @@ import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
 
 const AppRouter = () => {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <Routes>
         <Route path="/" element={<OnboardingPage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -42,7 +42,7 @@ const AppRouter = () => {
         <Route path="/admin" element={<AdminDashboardPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
-    </BrowserRouter>
+    </HashRouter>
   );
 };
 
