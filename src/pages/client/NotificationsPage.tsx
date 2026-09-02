@@ -55,12 +55,18 @@ const NotificationsPage = () => {
   useEffect(() => {
     if (!uid) return;
 
+    // Timeout de segurança: encerra loading se a busca não retornar em 8s
+    const safetyTimeout = window.setTimeout(() => {
+      setLoading((prev) => (prev ? false : prev));
+    }, 3000);
+
     const unsubscribe = subscribeToNotificationsForUser(uid, (items) => {
       setNotifications(items);
       setLoading(false);
     });
 
     return () => {
+      window.clearTimeout(safetyTimeout);
       unsubscribe();
     };
   }, [uid]);

@@ -3,10 +3,12 @@ import {
   doc,
   getDoc,
   getDocs,
+  onSnapshot,
   query,
   where,
 } from 'firebase/firestore';
 import { db } from '../firebase';
+import { FALLBACK_AVATAR_IMAGE } from '../components/atoms/Avatar';
 
 // ─── Tipos ────────────────────────────────────────────────────────────────────
 
@@ -32,7 +34,7 @@ export type ProfessionalCardData = {
 };
 
 // Placeholder usado quando o prestador ainda não enviou foto
-const FALLBACK_IMAGE = '/logo.jpg';
+const FALLBACK_IMAGE = FALLBACK_AVATAR_IMAGE;
 
 // ─── Helpers de normalização ──────────────────────────────────────────────────
 
@@ -136,4 +138,33 @@ export async function getProfessionals(): Promise<ProfessionalCardData[]> {
   }
 
   return professionals;
+}
+
+/**
+ * Conta quantas propostas concluídas existem para um prestador.
+ * Lê em tempo real — atualiza automaticamente quando o status muda.
+ */
+export function subscribeToCompletedServicesCount(
+  prestadorId: string,
+  callback: (count: number) => void,
+) {
+  const q = query(
+    collection(db, 'proposals'),
+    where('prestadorId', '==', prestadorId),
+    where('status', '==', 'concluido'),
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    callback(snapshot.size);
+  });
+}
+
+export async function getCompletedServicesCount(prestadorId: string): Promise<number> {
+  const q = query(
+    collection(db, 'proposals'),
+    where('prestadorId', '==', prestadorId),
+    where('status', '==', 'concluido'),
+  );
+  const snapshot = await getDocs(q);
+  return snapshot.size;
 }

@@ -10,6 +10,7 @@ import ReviewCard from '../../components/molecules/ReviewCard';
 import mockProfessionals from '../../constants/mockProfessionals';
 import { logout } from '../../services/auth';
 import { getReviewsForUser, type ReviewWithAuthor } from '../../services/reviews';
+import { subscribeToCompletedServicesCount } from '../../services/professionals';
 
 const getAuthUser = () => {
   try {
@@ -39,6 +40,7 @@ const ProfessionalProfilePage = () => {
   const [dbProfessional, setDbProfessional] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<ReviewWithAuthor[]>([]);
+  const [completedCount, setCompletedCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!profileId) {
@@ -68,6 +70,13 @@ const ProfessionalProfilePage = () => {
 
     fetchProfile();
     fetchReviews();
+  }, [profileId]);
+
+  // Assina contagem em tempo real de serviços concluídos do prestador
+  useEffect(() => {
+    if (!profileId) return;
+    const unsubscribe = subscribeToCompletedServicesCount(profileId, setCompletedCount);
+    return unsubscribe;
   }, [profileId]);
 
   const professional = profileId ? mockProfessionals.find((item) => item.uid === profileId) : null;
@@ -138,6 +147,7 @@ const ProfessionalProfilePage = () => {
   
   const selectedProfessional = getProfessionalData();
   const isOwner = authUser?.profile === 'prestador' && (!id || authUser?.uid === selectedProfessional.uid);
+  const effectiveTotalServicos = completedCount ?? selectedProfessional.totalServicos;
 
   const handleLogout = async () => {
     try {
@@ -205,13 +215,14 @@ const ProfessionalProfilePage = () => {
                       src={selectedProfessional.fotoUrl}
                       name={selectedProfessional.nome}
                       size="lg"
+                      useLogoFallback
                       className="border-4 border-white"
                     />
                     <div className="space-y-2">
                       <p className="text-sm uppercase tracking-[0.24em] text-slate-200">{selectedProfessional.categorias[0]} profissional</p>
                       <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">{selectedProfessional.nome}</h1>
                       <div className="flex flex-wrap items-center gap-3 text-sm text-slate-100">
-                        <span>{selectedProfessional.totalServicos} serviços</span>
+                        <span>{effectiveTotalServicos} serviços</span>
                         <span>•</span>
                         <span>{selectedProfessional.bairrosAtendimento[0]}</span>
                       </div>
@@ -239,7 +250,7 @@ const ProfessionalProfilePage = () => {
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                     <p className="text-sm text-slate-500">Serviços realizados</p>
-                    <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">{selectedProfessional.totalServicos}</p>
+                    <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">{effectiveTotalServicos}</p>
                   </div>
                   <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                     <p className="text-sm text-slate-500">Valor diário</p>
@@ -342,7 +353,7 @@ const ProfessionalProfilePage = () => {
                   <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                     <p className="text-sm text-slate-500">Serviços</p>
                     <p className="mt-2 text-2xl font-semibold text-[var(--color-navy)]">
-                      {selectedProfessional.totalServicos ?? 12}
+                      {effectiveTotalServicos}
                     </p>
                   </div>
                   <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">

@@ -425,12 +425,23 @@ const ProfessionalHomePage = () => {
   useEffect(() => {
     if (!uid) return;
 
+    // Timeout de segurança: encerra o loading se a busca não retornar em 8s
+    const safetyTimeout = window.setTimeout(() => {
+      setLoadingProposals((prev) => {
+        if (prev) return false;
+        return prev;
+      });
+    }, 3000);
+
     const unsubscribeDirect = subscribeToPendingProposalsForPrestador(uid, (items) => {
       setProposals(items);
       setLoadingProposals(false);
     });
 
-    return unsubscribeDirect;
+    return () => {
+      window.clearTimeout(safetyTimeout);
+      unsubscribeDirect();
+    };
   }, [uid]);
 
   useEffect(() => {

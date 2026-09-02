@@ -1,4 +1,6 @@
-import type { ImgHTMLAttributes } from 'react';
+import { useState, type ImgHTMLAttributes } from 'react';
+
+export const FALLBACK_AVATAR_IMAGE = '/logo.jpg';
 
 export type AvatarProps = {
   src?: string;
@@ -6,6 +8,8 @@ export type AvatarProps = {
   size?: 'sm' | 'md' | 'lg';
   className?: string;
   alt?: string;
+  /** Quando true, exibe a logo do ResolveJá em vez de iniciais quando o src é vazio. */
+  useLogoFallback?: boolean;
 } & Omit<ImgHTMLAttributes<HTMLImageElement>, 'src' | 'alt'>;
 
 const sizeMap = {
@@ -27,19 +31,38 @@ const Avatar = ({
   size = 'md',
   className = '',
   alt,
+  useLogoFallback = false,
   ...rest
 }: AvatarProps) => {
   const initials = getInitials(name);
   const sizeClasses = sizeMap[size] ?? sizeMap.md;
+  const hasValidSrc = typeof src === 'string' && src.trim().length > 0;
+  const [logoErrored, setLogoErrored] = useState(false);
 
-  return src ? (
-    <img
-      src={src}
-      alt={alt ?? `${name} profile photo`}
-      className={`rounded-full object-cover ${sizeClasses} ${className}`}
-      {...rest}
-    />
-  ) : (
+  if (hasValidSrc) {
+    return (
+      <img
+        src={src}
+        alt={alt ?? `${name} profile photo`}
+        className={`rounded-full object-cover ${sizeClasses} ${className}`}
+        {...rest}
+      />
+    );
+  }
+
+  if (useLogoFallback && !logoErrored) {
+    return (
+      <img
+        src={FALLBACK_AVATAR_IMAGE}
+        alt={alt ?? `${name} profile avatar`}
+        className={`rounded-full object-contain bg-white p-2 ${sizeClasses} ${className}`}
+        onError={() => setLogoErrored(true)}
+        {...rest}
+      />
+    );
+  }
+
+  return (
     <div
       role="img"
       aria-label={alt ?? `${name} profile avatar`}

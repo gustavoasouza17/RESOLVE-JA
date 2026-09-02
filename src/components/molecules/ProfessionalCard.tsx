@@ -50,7 +50,7 @@ const ProfessionalCard = ({
         ) : null}
 
         <div className="absolute left-4 bottom-4">
-          <Avatar src={image} name={name} size="lg" className="border-4 border-white shadow-xl" />
+          <Avatar src={image} name={name} size="lg" useLogoFallback className="border-4 border-white shadow-xl" />
         </div>
       </div>
 
