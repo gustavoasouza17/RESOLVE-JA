@@ -1,11 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import StatsBanner from '../../components/molecules/StatsBanner';
-import mockProfessionals from '../../constants/mockProfessionals';
-import mockProposals from '../../constants/mockProposals';
 import { loginWithEmail, resetPassword, translateError } from '../../services/auth';
+import { getProfessionals } from '../../services/professionals';
 import type { AuthError } from 'firebase/auth';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -23,6 +22,42 @@ const LoginPage = () => {
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [professionalsCount, setProfessionalsCount] = useState(0);
+  const [averageRating, setAverageRating] = useState('—');
+  const [loadingStats, setLoadingStats] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const safetyTimeout = window.setTimeout(() => {
+      setLoadingStats((prev) => (prev ? false : prev));
+    }, 3000);
+
+    const load = async () => {
+      try {
+        const data = await getProfessionals();
+        if (!cancelled) {
+          setProfessionalsCount(data.length);
+          if (data.length > 0) {
+            const avg = data.reduce((sum, p) => sum + p.avaliacaoMedia, 0) / data.length;
+            setAverageRating(avg.toFixed(1));
+          }
+        }
+      } catch (error) {
+        console.warn('Erro ao carregar profissionais:', error);
+      } finally {
+        if (!cancelled) {
+          setLoadingStats(false);
+        }
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(safetyTimeout);
+    };
+  }, []);
 
   const validate = (): boolean => {
     const next: FormErrors = {};
@@ -107,15 +142,10 @@ const LoginPage = () => {
     }
   };
 
-  const averageRating = (
-    mockProfessionals.reduce((sum, p) => sum + p.avaliacaoMedia, 0) /
-    mockProfessionals.length
-  ).toFixed(1);
-
   const stats = [
-    { value: `${mockProfessionals.length}+`, label: 'Profissionais' },
-    { value: averageRating, label: 'Avaliação média' },
-    { value: `${mockProposals.length * 3}+`, label: 'Atendimentos' },
+    { value: loadingStats ? '…' : `${professionalsCount}+`, label: 'Profissionais' },
+    { value: loadingStats ? '…' : averageRating, label: 'Avaliação média' },
+    { value: '100%', label: 'Compromisso' },
   ];
 
   return (

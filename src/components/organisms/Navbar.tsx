@@ -53,7 +53,7 @@ const Navbar = ({
       <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-4 sm:px-6 lg:px-8">
         <Link to="/" className="flex items-center gap-3 text-[var(--color-navy)]">
           <div className="flex h-11 w-11 items-center justify-center rounded-3xl bg-white overflow-hidden border border-slate-100">
-            <img src="/logo.jpg" alt="ResolveJá Logo" className="h-full w-full object-cover" />
+            <img src={`${import.meta.env.BASE_URL}logo.jpg`} alt="ResolveJá Logo" className="h-full w-full object-cover" />
           </div>
           <div className="space-y-0.5">
             <p className="text-sm font-semibold">ResolvaJá</p>

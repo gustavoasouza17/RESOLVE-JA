@@ -6,10 +6,10 @@ import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
 import StarRating from '../../components/atoms/StarRating';
 import BottomNav from '../../components/organisms/BottomNav';
-import mockProposals from '../../constants/mockProposals';
 import { auth, db } from '../../firebase';
 import { logout } from '../../services/auth';
 import { getReviewsForUser, type ReviewWithAuthor } from '../../services/reviews';
+import { getServiceHistory, type ServiceHistoryItem } from '../../services/services';
 
 const getUserName = () => {
   try {
@@ -49,6 +49,8 @@ const ClientProfilePage = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [firebaseUser, setFirebaseUser] = useState(auth.currentUser);
   const [reviews, setReviews] = useState<ReviewWithAuthor[]>([]);
+  const [history, setHistory] = useState<ServiceHistoryItem[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(true);
 
   // Carrega os dados do Firestore ao montar / quando o auth muda
   useEffect(() => {
@@ -80,6 +82,18 @@ const ClientProfilePage = () => {
         } catch (err) {
           console.error('Erro ao carregar avaliações do Firestore:', err);
         }
+
+        // Carrega histórico de serviços (proposals) do cliente
+        try {
+          const historyData = await getServiceHistory(user.uid);
+          setHistory(historyData);
+        } catch (err) {
+          console.error('Erro ao carregar histórico do Firestore:', err);
+        } finally {
+          setLoadingHistory(false);
+        }
+      } else {
+        setLoadingHistory(false);
       }
     });
     return unsubscribe;
@@ -149,20 +163,6 @@ const ClientProfilePage = () => {
     navigate('/');
   };
 
-  const historyItems = mockProposals
-    .filter((proposal) => proposal.clienteId === 'client001')
-    .slice(0, 3)
-    .map((proposal) => ({
-      id: proposal.id,
-      service: proposal.descricao,
-      status: proposal.status === 'pendente' ? 'Em andamento' : proposal.status === 'aceita' ? 'Concluído' : 'Cancelado',
-      date: new Date(proposal.dataDesejada).toLocaleDateString('pt-BR', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }),
-    }));
-
   const reviewItems = reviews.slice(0, 3).map((review) => ({
     id: review.id,
     name: review.autorNome,
@@ -170,6 +170,10 @@ const ClientProfilePage = () => {
     rating: review.nota,
     text: review.comentario,
   }));
+
+  const clientAverageRating = reviewItems.length > 0
+    ? reviewItems.reduce((acc, r) => acc + r.rating, 0) / reviewItems.length
+    : 0;
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
@@ -237,18 +241,26 @@ const ClientProfilePage = () => {
               <div className="mt-8 grid gap-4 sm:grid-cols-3">
                 <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                   <p className="text-sm text-slate-500">Serviços concluídos</p>
-                  <p className="mt-2 text-2xl font-semibold text-[var(--color-navy)]">{historyItems.length}</p>
+                  <p className="mt-2 text-2xl font-semibold text-[var(--color-navy)]">
+                    {loadingHistory ? '—' : history.filter((h) => h.status === 'Concluída').length}
+                  </p>
                 </div>
                 <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                   <p className="text-sm text-slate-500">Avaliação média</p>
-                  <div className="mt-2 flex items-center gap-2">
-                    <StarRating value={4.8} readOnly size="sm" />
-                    <span className="text-sm text-slate-600">4.8</span>
-                  </div>
+                  {clientAverageRating > 0 ? (
+                    <div className="mt-2 flex items-center gap-2">
+                      <StarRating value={clientAverageRating} readOnly size="sm" />
+                      <span className="text-sm text-slate-600">{clientAverageRating.toFixed(1)}</span>
+                    </div>
+                  ) : (
+                    <p className="mt-2 text-sm text-slate-500">Ainda sem avaliações.</p>
+                  )}
                 </div>
                 <div className="rounded-3xl bg-[var(--color-bg-light)] p-5">
                   <p className="text-sm text-slate-500">Último serviço</p>
-                  <p className="mt-2 text-base font-semibold text-[var(--color-navy)]">{historyItems[0]?.service ?? 'Nenhum serviço'}</p>
+                  <p className="mt-2 text-base font-semibold text-[var(--color-navy)]">
+                    {loadingHistory ? 'Carregando…' : history[0]?.service ?? 'Nenhum serviço'}
+                  </p>
                 </div>
               </div>
             </div>

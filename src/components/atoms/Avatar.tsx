@@ -1,6 +1,6 @@
 import { useState, type ImgHTMLAttributes } from 'react';
 
-export const FALLBACK_AVATAR_IMAGE = '/logo.jpg';
+export const FALLBACK_AVATAR_IMAGE = `${import.meta.env.BASE_URL}logo.jpg`;
 
 export type AvatarProps = {
   src?: string;

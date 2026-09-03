@@ -295,7 +295,7 @@ const HomePage = () => {
               <h2 className="mt-3 text-2xl font-bold">Precisa de ajuda rápida?</h2>
               <p className="mt-2 text-sm text-white/80">Peça um orçamento com descrição e receba retorno de quem já está disponível.</p>
               <Link
-                to="/proposta/prof001"
+                to="/buscar"
                 className="mt-4 inline-flex w-full items-center justify-center rounded-[24px] bg-[var(--color-primary)] px-4 py-4 text-sm font-semibold text-[var(--color-navy)] shadow-sm"
               >
                 Solicitar orçamento imediato

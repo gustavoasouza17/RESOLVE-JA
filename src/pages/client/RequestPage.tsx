@@ -3,7 +3,6 @@ import { doc, getDoc } from 'firebase/firestore';
 import { useParams, useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
-import mockProfessionals from '../../constants/mockProfessionals';
 import { db } from '../../firebase';
 import { createProposal } from '../../services/proposals';
 
@@ -26,11 +25,22 @@ function getAuthUser() {
 const RequestPage = () => {
   const { profissionalId } = useParams();
   const navigate = useNavigate();
-  const [professional, setProfessional] = useState(
-    () =>
-      mockProfessionals.find((p) => p.uid === profissionalId) ??
-      mockProfessionals[0],
-  );
+  const [professional, setProfessional] = useState<{
+    uid: string;
+    userId: string;
+    nome: string;
+    bio: string;
+    fotoUrl: string;
+    whatsapp: string;
+    categorias: string[];
+    bairrosAtendimento: string[];
+    portfolio: string[];
+    totalServicos: number;
+    distanciaKm: number;
+    avaliacaoMedia: number;
+    totalAvaliacoes: number;
+    valorDiaria: string;
+  } | null>(null);
 
   const [description, setDescription] = useState('');
   const [address, setAddress] = useState('');
@@ -45,21 +55,19 @@ const RequestPage = () => {
   useEffect(() => {
     if (!profissionalId) return;
 
-    const mockProfessional = mockProfessionals.find((p) => p.uid === profissionalId);
-    if (mockProfessional) {
-      setProfessional(mockProfessional);
-      if (mockProfessional.categorias?.[0]) {
-        setCategory(mockProfessional.categorias[0]);
-      }
-      return;
-    }
-
     let cancelled = false;
 
     const loadProfessional = async () => {
       try {
         const snap = await getDoc(doc(db, 'professionals', profissionalId));
-        if (!snap.exists() || cancelled) return;
+        if (!snap.exists()) {
+          if (!cancelled) {
+            setError('Profissional não encontrado.');
+            setProfessional(null);
+          }
+          return;
+        }
+        if (cancelled) return;
 
         const data = snap.data() as Record<string, unknown>;
 
@@ -79,21 +87,20 @@ const RequestPage = () => {
           portfolio: Array.isArray(data.portfolio)
             ? (data.portfolio as string[])
             : [],
-          disponibilidade: (data.disponibilidade as Record<string, string[]>) ?? {},
           totalServicos: Number(data.totalServicos) || 0,
           distanciaKm: Number(data.distanciaKm) || 0,
           avaliacaoMedia: Number(data.avaliacaoMedia) || 0,
           totalAvaliacoes: Number(data.totalAvaliacoes) || 0,
           valorDiaria: (data.valorDiaria as string) ?? 'Sob consulta',
-          plano: (data.plano as 'free' | 'premium') ?? 'free',
-          status: (data.status as 'ativo' | 'inativo') ?? 'ativo',
-          criadoEm: (data.criadoEm as string) ?? new Date().toISOString(),
         });
         if (Array.isArray(data.categorias) && data.categorias.length > 0) {
           setCategory(data.categorias[0]);
         }
       } catch (error) {
         console.error('Erro ao buscar prestador para a proposta:', error);
+        if (!cancelled) {
+          setError('Não foi possível carregar os dados do prestador.');
+        }
       }
     };
 
@@ -119,9 +126,14 @@ const RequestPage = () => {
       return;
     }
 
+    if (!isOpenRequest && !professional) {
+      setError('Aguarde o carregamento dos dados do prestador.');
+      return;
+    }
+
     setSubmitting(true);
     try {
-      const targetProfessionalId = isOpenRequest ? '' : (professional?.uid ?? profissionalId ?? mockProfessionals[0].uid);
+      const targetProfessionalId = isOpenRequest ? '' : (professional?.uid ?? '');
       const targetCategory = isOpenRequest ? category : (professional?.categorias?.[0] ?? '');
 
       await createProposal({
@@ -261,26 +273,33 @@ const RequestPage = () => {
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
                 Dados do prestador
               </p>
-              <div className="mt-5 space-y-3">
-                <p className="text-lg font-semibold text-[var(--color-navy)]">
-                  {professional.nome}
-                </p>
-                <p className="text-sm text-slate-600">{professional.bio}</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Avaliação</p>
-                    <p className="mt-2 text-lg font-semibold text-[var(--color-navy)]">
-                      {professional.avaliacaoMedia} ★
-                    </p>
-                  </div>
-                  <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
-                    <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Serviços</p>
-                    <p className="mt-2 text-lg font-semibold text-[var(--color-navy)]">
-                      {professional.totalServicos}
-                    </p>
+              {professional ? (
+                <div className="mt-5 space-y-3">
+                  <p className="text-lg font-semibold text-[var(--color-navy)]">
+                    {professional.nome}
+                  </p>
+                  <p className="text-sm text-slate-600">{professional.bio}</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Avaliação</p>
+                      <p className="mt-2 text-lg font-semibold text-[var(--color-navy)]">
+                        {professional.avaliacaoMedia} ★
+                      </p>
+                    </div>
+                    <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
+                      <p className="text-xs uppercase tracking-[0.24em] text-slate-500">Serviços</p>
+                      <p className="mt-2 text-lg font-semibold text-[var(--color-navy)]">
+                        {professional.totalServicos}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="mt-5 flex items-center gap-3 text-sm text-slate-500">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--color-primary)] border-t-transparent"></div>
+                  Carregando dados do prestador…
+                </div>
+              )}
             </div>
 
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">

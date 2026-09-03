@@ -7,7 +7,6 @@ import Button from '../../components/atoms/Button';
 import BottomNav from '../../components/organisms/BottomNav';
 import PortfolioGrid from '../../components/molecules/PortfolioGrid';
 import ReviewCard from '../../components/molecules/ReviewCard';
-import mockProfessionals from '../../constants/mockProfessionals';
 import { logout } from '../../services/auth';
 import { getReviewsForUser, type ReviewWithAuthor } from '../../services/reviews';
 import { subscribeToCompletedServicesCount } from '../../services/professionals';
@@ -79,8 +78,6 @@ const ProfessionalProfilePage = () => {
     return unsubscribe;
   }, [profileId]);
 
-  const professional = profileId ? mockProfessionals.find((item) => item.uid === profileId) : null;
-  
   const getProfessionalData = () => {
     // Se houver dados do Firestore, usar em prioritário
     if (dbProfessional) {
@@ -92,7 +89,7 @@ const ProfessionalProfilePage = () => {
         bio: dbProfessional.bio || 'Perfil do prestador cadastrado.',
         totalServicos: dbProfessional.totalServicos || 0,
         totalAvaliacoes: dbProfessional.totalAvaliacoes || 0,
-        avaliacaoMedia: dbProfessional.avaliacaoMedia ?? 0, // Importante: use a nota do Firestore
+        avaliacaoMedia: dbProfessional.avaliacaoMedia ?? 0,
         valorDiaria: dbProfessional.valorDiaria || 'Sob consulta',
         bairrosAtendimento: dbProfessional.bairrosAtendimento || (authUser?.city ? [authUser.city] : ['Localidade']),
         disponibilidade: dbProfessional.disponibilidade || {
@@ -108,14 +105,9 @@ const ProfessionalProfilePage = () => {
         whatsapp: dbProfessional.whatsapp || (authUser?.phone ?? ''),
       };
     }
-    
-    // Se encontrar nos mocks, usar
-    if (professional) {
-      return professional;
-    }
-    
-    // Se for proprietário (prestador visualizando seu próprio perfil), usar fallback
-    if (!professional && authUser?.profile === 'prestador') {
+
+    // Se for proprietário (prestador visualizando seu próprio perfil), usar dados do auth
+    if (authUser?.profile === 'prestador' && (!profileId || authUser?.uid === profileId)) {
       return {
         uid: authUser.uid ?? 'prestador-atual',
         nome: authUser.fullName,
@@ -140,14 +132,14 @@ const ProfessionalProfilePage = () => {
         whatsapp: authUser.phone ?? '',
       };
     }
-    
-    // Fallback final
-    return mockProfessionals[0];
+
+    return null;
+    return null;
   };
-  
+
   const selectedProfessional = getProfessionalData();
-  const isOwner = authUser?.profile === 'prestador' && (!id || authUser?.uid === selectedProfessional.uid);
-  const effectiveTotalServicos = completedCount ?? selectedProfessional.totalServicos;
+  const isOwner = !!selectedProfessional && authUser?.profile === 'prestador' && (!id || authUser?.uid === selectedProfessional.uid);
+  const effectiveTotalServicos = completedCount ?? selectedProfessional?.totalServicos ?? 0;
 
   const handleLogout = async () => {
     try {
@@ -163,12 +155,6 @@ const ProfessionalProfilePage = () => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportSent, setReportSent] = useState(false);
-
-  const heroImage = selectedProfessional.portfolio[0] ?? selectedProfessional.fotoUrl;
-  const portfolioItems = selectedProfessional.portfolio ?? [];
-  const reviewItems = reviews.slice(0, 3);
-  const hasWhatsApp = Boolean(selectedProfessional.whatsapp?.trim());
-  const availabilityDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
 
   const getDayLabel = (day: typeof availabilityDays[number]) => {
     const labels: Record<typeof availabilityDays[number], string> = {
@@ -194,6 +180,27 @@ const ProfessionalProfilePage = () => {
       </div>
     );
   }
+
+  if (!selectedProfessional) {
+    return (
+      <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
+        <BottomNav variant={authUser?.profile === 'prestador' ? 'professional' : 'client'} />
+        <div className="mx-auto max-w-3xl px-5 py-16 sm:px-6 lg:px-8">
+          <div className="rounded-[32px] bg-white p-10 text-center shadow-lg ring-1 ring-slate-200">
+            <h1 className="text-2xl font-bold text-[var(--color-navy)]">Profissional não encontrado</h1>
+            <p className="mt-3 text-sm text-slate-600">O perfil solicitado não está disponível no momento.</p>
+            <Button variant="primary" className="mt-6" onClick={() => navigate(-1)}>Voltar</Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const heroImage = selectedProfessional.portfolio[0] ?? selectedProfessional.fotoUrl;
+  const portfolioItems = selectedProfessional.portfolio ?? [];
+  const reviewItems = reviews.slice(0, 3);
+  const hasWhatsApp = Boolean(selectedProfessional.whatsapp?.trim());
+  const availabilityDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">

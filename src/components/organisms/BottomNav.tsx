@@ -67,9 +67,9 @@ const clientItems: NavItem[] = [
   {
     label: 'Novo',
     icon: () => <PlusIcon />,
-    path: '/proposta/prof001',
+    path: '/buscar',
     isCenter: true,
-    matchPaths: ['/proposta'],
+    matchPaths: ['/buscar'],
   },
   {
     label: 'Notificações',

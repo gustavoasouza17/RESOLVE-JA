@@ -1,12 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import CategoryCard from '../../components/molecules/CategoryCard';
 import StatsBanner from '../../components/molecules/StatsBanner';
 import Navbar from '../../components/organisms/Navbar';
 import categories from '../../constants/categories';
-import mockProfessionals from '../../constants/mockProfessionals';
-import mockProposals from '../../constants/mockProposals';
+import { getProfessionals, type ProfessionalCardData } from '../../services/professionals';
 
 const iconMap: Record<string, string> = {
   hammer: '🧱',
@@ -34,19 +33,49 @@ const OnboardingPage = () => {
   const state = location.state as { userName?: string; profile?: string } | null;
   const userName = state?.userName;
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [professionals, setProfessionals] = useState<ProfessionalCardData[]>([]);
+  const [loadingStats, setLoadingStats] = useState(true);
 
-  const averageRating = (
-    mockProfessionals.reduce((sum, professional) => sum + professional.avaliacaoMedia, 0) /
-    mockProfessionals.length
-  ).toFixed(1);
+  useEffect(() => {
+    let cancelled = false;
+    const safetyTimeout = window.setTimeout(() => {
+      setLoadingStats((prev) => (prev ? false : prev));
+    }, 3000);
+
+    const load = async () => {
+      try {
+        const data = await getProfessionals();
+        if (!cancelled) {
+          setProfessionals(data);
+        }
+      } catch (error) {
+        console.warn('Erro ao carregar profissionais:', error);
+      } finally {
+        if (!cancelled) {
+          setLoadingStats(false);
+        }
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(safetyTimeout);
+    };
+  }, []);
+
+  const averageRating = professionals.length > 0
+    ? (professionals.reduce((sum, p) => sum + p.avaliacaoMedia, 0) / professionals.length).toFixed(1)
+    : '—';
 
   const stats = [
-    { value: `${mockProfessionals.length}+`, label: 'Profissionais' },
-    { value: averageRating, label: 'Avaliação média' },
-    { value: `${mockProposals.length * 4}k+`, label: 'Atendimentos' },
+    { value: loadingStats ? '…' : `${professionals.length}+`, label: 'Profissionais' },
+    { value: loadingStats ? '…' : averageRating, label: 'Avaliação média' },
+    { value: loadingStats ? '…' : '100%', label: 'Compromisso' },
   ];
 
-  const professionalsPreview = mockProfessionals.slice(0, 2);
+  const professionalsPreview = professionals.slice(0, 2);
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">

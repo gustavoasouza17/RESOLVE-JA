@@ -9,8 +9,8 @@ import BottomNav from "../../components/organisms/BottomNav";
 import MapView from "../../components/organisms/MapView";
 import Button from "../../components/atoms/Button";
 import StarRating from "../../components/atoms/StarRating";
-import mockProfessionals from "../../constants/mockProfessionals";
 import categories from "../../constants/categories";
+import { getProfessionals, type ProfessionalCardData } from "../../services/professionals";
 
 // São Paulo approximate center (fallback)
 const SP_CENTER = { lat: -23.5505, lng: -46.6333 };
@@ -54,6 +54,38 @@ const SearchPage = () => {
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [sortBy, setSortBy] = useState<"distance" | "rating">("distance");
+  const [professionals, setProfessionals] = useState<ProfessionalCardData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    const safetyTimeout = window.setTimeout(() => {
+      setLoading((prev) => (prev ? false : prev));
+    }, 3000);
+
+    const load = async () => {
+      try {
+        const data = await getProfessionals();
+        if (!cancelled) {
+          setProfessionals(data);
+          setLoading(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setLoadError(true);
+          setLoading(false);
+        }
+      }
+    };
+
+    load();
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(safetyTimeout);
+    };
+  }, []);
 
   useEffect(() => {
     setSelectedCategory(resolveCategoryFromParam(categoria));
@@ -62,7 +94,7 @@ const SearchPage = () => {
   const lowerCategory = selectedCategory.toLowerCase();
   const query = search.toLowerCase();
 
-  let filtered = mockProfessionals.filter((professional) => {
+  let filtered = professionals.filter((professional) => {
     if (lowerCategory) {
       const matchesCategory = professional.categorias.some((cat) =>
         cat.toLowerCase().includes(lowerCategory),
@@ -259,7 +291,18 @@ const SearchPage = () => {
           </div>
 
           {/* Results — empty state */}
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="flex flex-col items-center justify-center rounded-[32px] bg-white py-20 shadow-sm ring-1 ring-slate-200">
+              <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
+              <p className="mt-4 text-sm text-slate-600">Carregando profissionais…</p>
+            </div>
+          ) : loadError ? (
+            <div className="flex flex-col items-center justify-center rounded-[32px] bg-rose-50 py-16 shadow-sm ring-1 ring-rose-200">
+              <span className="text-4xl">⚠️</span>
+              <h2 className="mt-4 text-xl font-bold text-rose-900">Erro ao carregar profissionais</h2>
+              <p className="mt-2 max-w-md text-center text-sm text-rose-700">Tente novamente em instantes.</p>
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="flex flex-col items-center justify-center rounded-[32px] bg-white py-20 shadow-sm ring-1 ring-slate-200">
               <span className="text-5xl">🔍</span>
               <h2 className="mt-6 text-xl font-bold text-[var(--color-navy)]">
