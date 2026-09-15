@@ -7,6 +7,7 @@ import Button from '../../components/atoms/Button';
 import BottomNav from '../../components/organisms/BottomNav';
 import PortfolioGrid from '../../components/molecules/PortfolioGrid';
 import ReviewCard from '../../components/molecules/ReviewCard';
+import ConfirmModal from '../../components/molecules/ConfirmModal';
 import { logout } from '../../services/auth';
 import { getReviewsForUser, type ReviewWithAuthor } from '../../services/reviews';
 import { subscribeToCompletedServicesCount } from '../../services/professionals';
@@ -141,7 +142,11 @@ const ProfessionalProfilePage = () => {
   const isOwner = !!selectedProfessional && authUser?.profile === 'prestador' && (!id || authUser?.uid === selectedProfessional.uid);
   const effectiveTotalServicos = completedCount ?? selectedProfessional?.totalServicos ?? 0;
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setIsLogoutOpen(true);
+  };
+
+  const handleConfirmLogout = async () => {
     try {
       await logout();
     } catch (err) {
@@ -155,6 +160,7 @@ const ProfessionalProfilePage = () => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState('');
   const [reportSent, setReportSent] = useState(false);
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 
   const getDayLabel = (day: typeof availabilityDays[number]) => {
     const labels: Record<typeof availabilityDays[number], string> = {
@@ -464,7 +470,7 @@ const ProfessionalProfilePage = () => {
         </div>
       ) : null}
 
-      {isReportOpen ? (
+{isReportOpen ? (
         <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-slate-950/80 p-4">
           <div className="w-full max-w-2xl rounded-[32px] bg-white p-8 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
@@ -518,6 +524,17 @@ const ProfessionalProfilePage = () => {
           </div>
         </div>
       ) : null}
+
+      <ConfirmModal
+        isOpen={isLogoutOpen}
+        onClose={() => setIsLogoutOpen(false)}
+        onConfirm={handleConfirmLogout}
+        title="Sair da conta"
+        message="Tem certeza que deseja sair da sua conta?"
+        confirmLabel="Sair"
+        cancelLabel="Cancelar"
+        confirmVariant="danger"
+      />
     </div>
   );
 };

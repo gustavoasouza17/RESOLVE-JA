@@ -6,6 +6,7 @@ import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
 import StarRating from '../../components/atoms/StarRating';
 import BottomNav from '../../components/organisms/BottomNav';
+import ConfirmModal from '../../components/molecules/ConfirmModal';
 import { auth, db } from '../../firebase';
 import { logout } from '../../services/auth';
 import { getReviewsForUser, type ReviewWithAuthor } from '../../services/reviews';
@@ -51,6 +52,7 @@ const ClientProfilePage = () => {
   const [reviews, setReviews] = useState<ReviewWithAuthor[]>([]);
   const [history, setHistory] = useState<ServiceHistoryItem[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
 
   // Carrega os dados do Firestore ao montar / quando o auth muda
   useEffect(() => {
@@ -153,7 +155,11 @@ const ClientProfilePage = () => {
     setIsEditing(false);
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
+    setIsLogoutOpen(true);
+  };
+
+  const handleConfirmLogout = async () => {
     try {
       await logout();
     } catch (err) {
@@ -176,6 +182,7 @@ const ClientProfilePage = () => {
     : 0;
 
   return (
+    <>
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
       <BottomNav variant="client" />
       <div className="mx-auto max-w-6xl px-5 py-10 sm:px-6 lg:px-8">
@@ -319,6 +326,17 @@ const ClientProfilePage = () => {
         </div>
       </div>
     </div>
+    <ConfirmModal
+      isOpen={isLogoutOpen}
+      onClose={() => setIsLogoutOpen(false)}
+      onConfirm={handleConfirmLogout}
+      title="Sair da conta"
+      message="Tem certeza que deseja sair da sua conta?"
+      confirmLabel="Sair"
+      cancelLabel="Cancelar"
+      confirmVariant="danger"
+    />
+    </>
   );
 };
 
