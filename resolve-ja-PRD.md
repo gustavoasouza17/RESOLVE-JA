@@ -211,6 +211,8 @@ resolve-ja/
 | Badge de boas-vindas | Texto | "✨ Conectando você aos melhores profissionais" [mockup only — confirmar] |
 | Título hero | H1 | "Buscando qual **serviço?**" — "serviço?" em cor primária |
 | Subtítulo | Texto | "Encontre profissionais qualificados, avaliados e próximos de você em segundos" |
+| **Consulta por CEP (novo)** | **Form + Input** | **Campo de CEP com máscara automática (00000-000); validação de formato (8 dígitos); busca endereço via ViaCEP; botão "Buscar profissionais" habilitado apenas com CEP válido; erro inline "CEP inválido. Verifique e tente novamente." se falhar validação ou CEP não encontrado** |
+| **Resultado da consulta por CEP** | **Conditional Section** | **Se CEP válido: exibe localização encontrada (bairro, cidade/UF) e grid de profissionais que atendem naquela região (reaproveita ProfessionalCard). Filtro por bairrosAtendimento do profissional. Botão "Alterar CEP" reinicia o fluxo.** |
 | Toggle Mapa / Lista | SegmentedControl | Dois botões: "Ver Mapa" e "Ver Lista"; troca modo de exibição dos resultados abaixo |
 | Grid de categorias | CategoryCard list | Ícone em fundo roxo/gradiente, nome da categoria, subtítulo "Profissionais verificados e avaliados", seta `→`; categorias visíveis: Pedreiro, Encanador, Marceneiro (e mais) |
 | Banner de estatísticas | StatsBanner | Fundo gradiente roxo→azul; "Mais segurança em suas pesquisas!"; métricas: 500+ Profissionais, 5.0 Avaliação média, 10k+ Atendimentos [mockup only — confirmar valores reais] |
@@ -218,6 +220,7 @@ resolve-ja/
 
 - Edge case: usuário já autenticado → redirecionar para `/home` (cliente) ou `/prestador/home` (prestador)
 - Edge case (S03 mockup): exibir card informativo "💡 Você sabia? Você pode ter ambos os perfis! Prestadores também podem contratar outros profissionais." [mockup only — confirmar se suportado na v1]
+- **Consulta por CEP é pública — não exige autenticação, não persiste CEP no Firestore; apenas valida formato, busca endereço via API pública (ViaCEP) e filtra profissionais por bairrosAtendimento**
 
 ---
 
@@ -605,6 +608,15 @@ resolve-ja/
 12. O sistema deve exibir profissionais próximos no mapa usando a Geolocation API do browser
 13. O cliente pode informar CEP ou bairro manualmente caso recuse permissão de GPS
 14. O sistema deve exibir distância e quantidade de serviços realizados nos cards de resultado
+
+### Consulta por CEP (Landing Page)
+15. A landing page pública deve exibir um campo de CEP com máscara automática (formato 00000-000)
+16. O sistema deve validar o formato do CEP (8 dígitos) e buscar o endereço via API pública (ViaCEP) antes de permitir o envio
+17. Em caso de CEP inválido ou não encontrado, exibir mensagem inline: "CEP inválido. Verifique e tente novamente."
+18. Ao submeter CEP válido, exibir localização encontrada (bairro, cidade/UF) e lista de profissionais disponíveis que atendem naquela região (reaproveita cards da HomePage autenticada)
+19. A consulta é pública — não exige autenticação e não persiste o CEP no Firestore
+20. O filtro de profissionais é feito comparando o bairro do CEP com o campo `bairrosAtendimento` dos profissionais
+21. O usuário pode clicar em "Alterar CEP" para reiniciar o fluxo de consulta
 
 ### Proposta e Contato
 15. O cliente pode enviar uma proposta ao prestador com descrição, endereço, data desejada e orçamento

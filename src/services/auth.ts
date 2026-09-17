@@ -63,7 +63,7 @@ function translateError(
  * Verifica no Firestore se um CPF já está em uso.
  * Percorre todos os documentos da coleção `users` comparando o campo `cpf`.
  */
-async function checkCpfDuplicity(cpf: string): Promise<string | null> {
+export async function checkCpfDuplicity(cpf: string): Promise<string | null> {
   try {
     const q = query(collection(db, "users"), where("cpf", "==", cpf));
     const snapshot = await getDocs(q);
