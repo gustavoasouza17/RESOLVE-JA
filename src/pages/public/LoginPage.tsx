@@ -27,6 +27,19 @@ const LoginPage = () => {
   const [loadingStats, setLoadingStats] = useState(true);
 
   useEffect(() => {
+    try {
+      const hashQuery = window.location.hash.includes('?') ? window.location.hash.split('?')[1] : '';
+      const params = new URLSearchParams(hashQuery || window.location.search);
+      const emailParam = params.get('email');
+      if (emailParam) {
+        setEmail(emailParam);
+      }
+    } catch {
+      // ignora
+    }
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     const safetyTimeout = window.setTimeout(() => {
       setLoadingStats((prev) => (prev ? false : prev));

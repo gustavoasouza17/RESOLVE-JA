@@ -53,6 +53,13 @@ function normalizeNumber(value: unknown, fallback = 0): number {
 }
 
 function mapReview(id: string, data: Record<string, unknown>): Review {
+  let criadoEm = new Date().toISOString();
+  if (typeof data.criadoEm === 'string' && data.criadoEm.trim()) {
+    criadoEm = data.criadoEm;
+  } else if (data.criadoEm && typeof (data.criadoEm as { toDate?: () => Date }).toDate === 'function') {
+    criadoEm = (data.criadoEm as { toDate: () => Date }).toDate().toISOString();
+  }
+
   return {
     id,
     proposalId: normalizeString(data.proposalId),
@@ -61,7 +68,7 @@ function mapReview(id: string, data: Record<string, unknown>): Review {
     tipo: (data.tipo as ReviewTipo) ?? 'cliente_para_prestador',
     nota: normalizeNumber(data.nota),
     comentario: normalizeString(data.comentario),
-    criadoEm: normalizeString(data.criadoEm, new Date().toISOString()),
+    criadoEm,
   };
 }
 
@@ -163,12 +170,22 @@ export async function getReviewsForUser(
   avaliadoId: string,
 ): Promise<ReviewWithAuthor[]> {
   try {
-    const q = query(
-      collection(db, 'reviews'),
-      where('avaliadoId', '==', avaliadoId),
-      orderBy('criadoEm', 'desc'),
-    );
-    const snapshot = await getDocs(q);
+    let snapshot;
+    try {
+      const qWithOrder = query(
+        collection(db, 'reviews'),
+        where('avaliadoId', '==', avaliadoId),
+        orderBy('criadoEm', 'desc'),
+      );
+      snapshot = await getDocs(qWithOrder);
+    } catch {
+      // Fallback sem orderBy para não falhar caso o índice composto no Firestore não exista
+      const qSimple = query(
+        collection(db, 'reviews'),
+        where('avaliadoId', '==', avaliadoId),
+      );
+      snapshot = await getDocs(qSimple);
+    }
 
     const reviews: ReviewWithAuthor[] = [];
     for (const docSnap of snapshot.docs) {
@@ -176,6 +193,10 @@ export async function getReviewsForUser(
       const author = await getUserInfo(review.avaliadorId);
       reviews.push({ ...review, autorNome: author.nome, autorFotoUrl: author.fotoUrl });
     }
+
+    // Ordenação decrescente por data em memória
+    reviews.sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime());
+
     return reviews;
   } catch (error) {
     console.warn('Erro ao buscar avaliações:', error);

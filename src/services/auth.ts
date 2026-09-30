@@ -27,7 +27,7 @@ const ptBrErrors: Record<string, string> = {
   "auth/wrong-password": "Senha incorreta. Tente novamente.",
   "auth/invalid-credential": "E-mail ou senha inválidos.",
   "auth/email-already-in-use":
-    "Este e-mail já está cadastrado. Faça login ou use outro e-mail.",
+    "Este e-mail já está cadastrado no sistema. Faça login com suas credenciais ou utilize outro e-mail.",
   "auth/weak-password": "A senha deve ter pelo menos 6 caracteres.",
   "auth/invalid-email": "O formato do e-mail é inválido.",
   "auth/too-many-requests":
@@ -37,7 +37,7 @@ const ptBrErrors: Record<string, string> = {
   "auth/user-disabled":
     "Esta conta foi desativada. Entre em contato com o suporte.",
   "auth/operation-not-allowed":
-    "Este método de login não está habilitado no momento.",
+    "O cadastro por e-mail/senha não está habilitado no Firebase Console.",
   "auth/requires-recent-login":
     "Por segurança, faça login novamente antes de alterar estas informações.",
 };
@@ -46,14 +46,24 @@ function translateError(
   error: AuthError | { code?: string; message?: string },
 ): string {
   const code = error.code ?? "";
+  const message = error.message ?? "";
   if (
     code === "permission-denied" ||
-    error.message?.includes("Missing or insufficient permissions")
+    message.includes("Missing or insufficient permissions")
   ) {
     return "Permissão insuficiente no banco de dados (Firestore). Verifique as Regras de Segurança (Rules) no Firebase Console.";
   }
+  if (code === "auth/email-already-in-use" || message.includes("EMAIL_EXISTS")) {
+    return "Este e-mail já está cadastrado no sistema. Faça login com suas credenciais ou utilize outro e-mail.";
+  }
+  if (code === "auth/weak-password" || message.includes("WEAK_PASSWORD")) {
+    return "A senha deve ter pelo menos 6 caracteres.";
+  }
+  if (code === "auth/invalid-email" || message.includes("INVALID_EMAIL")) {
+    return "O formato do e-mail é inválido.";
+  }
   return (
-    ptBrErrors[code] ?? error.message ?? "Erro desconhecido. Tente novamente."
+    ptBrErrors[code] ?? message ?? "Erro desconhecido. Tente novamente."
   );
 }
 
@@ -91,6 +101,23 @@ export async function loginWithEmail(email: string, senha: string) {
     profileData = userDoc.exists()
       ? (userDoc.data() as Record<string, unknown>)
       : null;
+
+    // Se o usuário tiver registro na coleção professionals, preserva ou seta o perfil de prestador
+    if (!profileData?.perfil || profileData.perfil === "prestador") {
+      try {
+        const profDoc = await getDoc(doc(db, "professionals", user.uid));
+        if (profDoc.exists()) {
+          const profData = profDoc.data() as Record<string, unknown>;
+          profileData = {
+            ...(profileData || {}),
+            ...profData,
+            perfil: "prestador",
+          };
+        }
+      } catch {
+        // ignora
+      }
+    }
   } catch (error) {
     console.warn(
       "Não foi possível carregar o perfil do Firestore (permissão ou erro de rede):",

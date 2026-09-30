@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
@@ -95,6 +95,7 @@ const RegisterPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [serverError, setServerError] = useState('');
   const [isTermsOpen, setIsTermsOpen] = useState(false);
+  const serverErrorRef = useRef<HTMLDivElement>(null);
 
   const handleField = (name: keyof FormFields, value: string | boolean) => {
     setFields((prev) => ({ ...prev, [name]: value }));
@@ -198,12 +199,31 @@ const RegisterPage = () => {
 
       navigate(selectedProfile === 'prestador' ? '/prestador/home' : '/home');
     } catch (err) {
+      console.error('Erro ao cadastrar usuário no Firebase:', err);
+      const errCode = (err as { code?: string })?.code || '';
+      const errMsg = (err as { message?: string })?.message || '';
+      const isEmailAlreadyInUse =
+        errCode === 'auth/email-already-in-use' ||
+        errMsg.includes('EMAIL_EXISTS');
+
+      if (isEmailAlreadyInUse) {
+        setErrors((prev) => ({
+          ...prev,
+          email: 'Este e-mail já está cadastrado no sistema.',
+        }));
+      }
+
       const msg = err instanceof Error
         ? (err as unknown as { code?: string }).code
           ? translateError(err as unknown as AuthError)
           : err.message
         : 'Erro ao cadastrar. Verifique sua conexão.';
       setServerError(msg);
+
+      // Rola a tela até o erro para que o usuário veja imediatamente
+      setTimeout(() => {
+        serverErrorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
     } finally {
       setIsSubmitting(false);
     }
@@ -287,8 +307,27 @@ const RegisterPage = () => {
               </div>
 
               {serverError ? (
-                <div className="rounded-3xl bg-rose-50 p-4 text-sm font-medium text-rose-700 ring-1 ring-rose-200">
-                  {serverError}
+                <div
+                  ref={serverErrorRef}
+                  className="rounded-3xl bg-rose-50 p-5 text-sm font-medium text-rose-800 ring-1 ring-rose-300 shadow-sm"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="text-xl">⚠️</span>
+                    <div className="flex-1 space-y-1">
+                      <p className="font-bold text-rose-900">{serverError}</p>
+                      {serverError.includes('já está cadastrado') ? (
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-rose-200 pt-3">
+                          <span className="text-xs text-rose-700">Deseja entrar com sua senha existente?</span>
+                          <Link
+                            to={`/login?email=${encodeURIComponent(fields.email.trim())}`}
+                            className="inline-flex items-center gap-1 rounded-xl bg-rose-600 px-3.5 py-1.5 text-xs font-bold text-white shadow-sm transition hover:bg-rose-700"
+                          >
+                            Fazer Login agora →
+                          </Link>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
                 </div>
               ) : null}
 
@@ -428,6 +467,23 @@ const RegisterPage = () => {
                     {errors.terms ? <p className="text-xs text-rose-600">{errors.terms}</p> : null}
                   </div>
                 </div>
+
+                {serverError ? (
+                  <div className="rounded-2xl bg-rose-50 p-4 text-sm font-medium text-rose-800 ring-1 ring-rose-300">
+                    <p className="font-semibold">{serverError}</p>
+                    {serverError.includes('já está cadastrado') ? (
+                      <div className="mt-2.5 flex items-center justify-between border-t border-rose-200 pt-2.5">
+                        <span className="text-xs text-rose-700">Já tem cadastro com este e-mail?</span>
+                        <Link
+                          to={`/login?email=${encodeURIComponent(fields.email.trim())}`}
+                          className="font-bold text-rose-700 underline text-xs hover:text-rose-900"
+                        >
+                          Fazer Login →
+                        </Link>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
 
                 <Button type="submit" className="w-full py-4 text-base" variant="primary" disabled={isSubmitting || !fields.terms}>
                   {isSubmitting ? 'Cadastrando…' : 'Criar minha conta'}

@@ -1,5 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { onAuthStateChanged } from 'firebase/auth';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { auth, db } from '../../firebase';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import BottomNav from '../../components/organisms/BottomNav';
@@ -24,18 +27,7 @@ const shifts: Array<{ key: Shift; label: string }> = [
   { key: 'noite', label: 'Noite' },
 ];
 
-const validateImageFile = (file: File) => {
-  const validTypes = ['image/jpeg', 'image/png'];
-  if (!validTypes.includes(file.type)) {
-    return 'A imagem deve ser JPEG ou PNG.';
-  }
 
-  if (file.size > 5 * 1024 * 1024) {
-    return 'A imagem deve ter no máximo 5MB.';
-  }
-
-  return null;
-};
 
 const normalizeNeighborhood = (value: string) => value.trim().replace(/\s{2,}/g, ' ');
 
@@ -52,10 +44,21 @@ const getAuthUser = () => {
       state?: string;
       phone?: string;
       email?: string;
+      fotoUrl?: string;
     };
   } catch {
     return null;
   }
+};
+
+const initialAvailability: Record<DayKey, Shift[]> = {
+  segunda: [],
+  terca: [],
+  quarta: [],
+  quinta: [],
+  sexta: [],
+  sabado: [],
+  domingo: [],
 };
 
 const ProfessionalProfileEditPage = () => {
@@ -63,29 +66,122 @@ const ProfessionalProfileEditPage = () => {
   const authUser = getAuthUser();
   const maxPortfolioSize = 10;
 
-  const [fullName, setFullName] = useState(authUser?.fullName ?? 'Carlos Mendes');
-  const [bio, setBio] = useState('Pedreiro com 12 anos de experiência em reformas residenciais.');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(authUser?.category ? [authUser.category] : []);
+  const [uid, setUid] = useState<string | null>(authUser?.uid ?? auth.currentUser?.uid ?? null);
+  const [loading, setLoading] = useState(true);
+
+  const [fullName, setFullName] = useState(authUser?.fullName ?? '');
+  const [bio, setBio] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    authUser?.category ? [authUser.category] : []
+  );
   const [whatsapp, setWhatsapp] = useState(authUser?.phone ?? '');
   const [rate, setRate] = useState('');
   const [neighborhoodInput, setNeighborhoodInput] = useState('');
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
-  const [availability, setAvailability] = useState<Record<DayKey, Shift[]>>({
-    segunda: [],
-    terca: [],
-    quarta: [],
-    quinta: [],
-    sexta: [],
-    sabado: [],
-    domingo: [],
-  });
-  const [profilePhoto, setProfilePhoto] = useState<File | null>(null);
-  const [profilePhotoPreview, setProfilePhotoPreview] = useState<string | null>(null);
-  const [portfolioFiles, setPortfolioFiles] = useState<File[]>([]);
-  const [portfolioPreviews, setPortfolioPreviews] = useState<string[]>([]);
+  const [availability, setAvailability] = useState<Record<DayKey, Shift[]>>(initialAvailability);
+
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string>(authUser?.fotoUrl ?? '');
+  const [existingPortfolio, setExistingPortfolio] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [submitStatus, setSubmitStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
   const [submitMessage, setSubmitMessage] = useState('');
+
+  // Identifica o usuário autenticado
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setUid(user.uid);
+      } else {
+        const stored = getAuthUser();
+        setUid(stored?.uid ?? null);
+      }
+    });
+    return unsubscribe;
+  }, []);
+
+  // Carrega os dados reais do Firestore
+  useEffect(() => {
+    if (!uid) return;
+
+    let cancelled = false;
+
+    const loadProfile = async () => {
+      try {
+        setLoading(true);
+        const profSnap = await getDoc(doc(db, 'professionals', uid));
+        const userSnap = await getDoc(doc(db, 'users', uid));
+
+        if (cancelled) return;
+
+        const profData = profSnap.exists() ? (profSnap.data() as Record<string, unknown>) : null;
+        const userData = userSnap.exists() ? (userSnap.data() as Record<string, unknown>) : null;
+        const stored = getAuthUser();
+
+        const initialName =
+          (profData?.nome as string) ||
+          (userData?.nome as string) ||
+          stored?.fullName ||
+          '';
+        const initialBio = (profData?.bio as string) ?? (userData?.bio as string) ?? '';
+        const initialCategories =
+          (profData?.categorias as string[]) ||
+          (userData?.categorias as string[]) ||
+          (stored?.category ? [stored.category] : []);
+        const initialWhatsapp =
+          (profData?.whatsapp as string) ||
+          (userData?.telefone as string) ||
+          stored?.phone ||
+          '';
+        const initialRate = (profData?.valorDiaria as string) || '';
+        const initialNeighborhoods =
+          (profData?.bairrosAtendimento as string[]) ||
+          (userData?.cidade ? [userData.cidade as string] : []);
+        const loadedAvailability =
+          (profData?.disponibilidade as Record<DayKey, Shift[]>) || initialAvailability;
+        const initialPhoto =
+          (profData?.fotoUrl as string) || (userData?.fotoUrl as string) || stored?.fotoUrl || '';
+        const initialPortfolio = (profData?.portfolio as string[]) || [];
+
+        setFullName(initialName);
+        setBio(initialBio);
+        setSelectedCategories(initialCategories);
+        setWhatsapp(initialWhatsapp);
+        setRate(initialRate);
+        setNeighborhoods(initialNeighborhoods);
+        setAvailability({
+          segunda: loadedAvailability.segunda || [],
+          terca: loadedAvailability.terca || [],
+          quarta: loadedAvailability.quarta || [],
+          quinta: loadedAvailability.quinta || [],
+          sexta: loadedAvailability.sexta || [],
+          sabado: loadedAvailability.sabado || [],
+          domingo: loadedAvailability.domingo || [],
+        });
+        setExistingPhotoUrl(initialPhoto);
+        setExistingPortfolio(initialPortfolio);
+      } catch (err) {
+        console.error('Erro ao carregar perfil do Firestore:', err);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadProfile();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [uid]);
+
+  // Timeout de segurança para não travar na tela de loading
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const totalSelected = useMemo(() => selectedCategories.length, [selectedCategories.length]);
   const selectedAvailabilityCount = useMemo(
@@ -122,82 +218,27 @@ const ProfessionalProfileEditPage = () => {
 
   const handleToggleAvailability = (day: DayKey, shift: Shift) => {
     setAvailability((current) => {
-      const hasShift = current[day].includes(shift);
+      const dayShifts = current[day] || [];
+      const hasShift = dayShifts.includes(shift);
       const nextShifts = hasShift
-        ? current[day].filter((item) => item !== shift)
-        : [...current[day], shift];
+        ? dayShifts.filter((item) => item !== shift)
+        : [...dayShifts, shift];
 
       return { ...current, [day]: nextShifts };
     });
   };
 
-  const handleProfilePhotoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) {
-      setProfilePhoto(null);
-      setProfilePhotoPreview(null);
-      return;
-    }
 
-    const validationError = validateImageFile(file);
-    if (validationError) {
-      setErrors((prev) => ({ ...prev, profilePhoto: validationError }));
-      setProfilePhoto(null);
-      setProfilePhotoPreview(null);
-      setSubmitMessage('Erro ao enviar imagem. Tente novamente.');
-      setSubmitStatus('error');
-      return;
-    }
 
-    if (profilePhotoPreview) {
-      URL.revokeObjectURL(profilePhotoPreview);
-    }
-
-    setProfilePhoto(file);
-    setProfilePhotoPreview(URL.createObjectURL(file));
-    setErrors((prev) => ({ ...prev, profilePhoto: '' }));
-    setSubmitMessage('');
-  };
-
-  const handlePortfolioChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files ?? []);
-    const validFiles: File[] = [];
-    const invalidFile = files.find((file) => validateImageFile(file) !== null);
-
-    if (invalidFile) {
-      setErrors((prev) => ({ ...prev, portfolio: 'Erro ao enviar imagem. Tente novamente.' }));
-      setSubmitMessage('Erro ao enviar imagem. Tente novamente.');
-      setSubmitStatus('error');
-      return;
-    }
-
-    if (files.length + portfolioFiles.length > maxPortfolioSize) {
-      setErrors((prev) => ({ ...prev, portfolio: `Máximo de ${maxPortfolioSize} fotos de portfólio.` }));
-      return;
-    }
-
-    files.forEach((file) => validFiles.push(file));
-    setPortfolioFiles((current) => [...current, ...validFiles]);
-    setPortfolioPreviews((current) => [...current, ...validFiles.map((file) => URL.createObjectURL(file))]);
-    setErrors((prev) => ({ ...prev, portfolio: '' }));
-    setSubmitMessage('');
-  };
-
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     const nextErrors: Record<string, string> = {};
 
-    if (!profilePhoto) {
-      nextErrors.profilePhoto = 'Foto de perfil obrigatória para publicar o perfil.';
-    }
+    // Foto de perfil é OPCIONAL (Storage do Firebase ainda não habilitado)
 
     if (!selectedCategories.length) {
       nextErrors.categories = 'Ao menos 1 categoria obrigatória.';
-    }
-
-    if (!neighborhoods.length) {
-      nextErrors.neighborhoods = 'Ao menos 1 bairro obrigatório.';
     }
 
     if (!whatsapp.trim()) {
@@ -208,9 +249,7 @@ const ProfessionalProfileEditPage = () => {
       nextErrors.bio = 'Máximo de 300 caracteres.';
     }
 
-    if (portfolioFiles.length > maxPortfolioSize) {
-      nextErrors.portfolio = `Máximo de ${maxPortfolioSize} fotos de portfólio.`;
-    }
+
 
     if (Object.keys(nextErrors).length) {
       setErrors(nextErrors);
@@ -219,15 +258,91 @@ const ProfessionalProfileEditPage = () => {
       return;
     }
 
+    const targetUid = uid || auth.currentUser?.uid || authUser?.uid;
+    if (!targetUid) {
+      setSubmitStatus('error');
+      setSubmitMessage('Usuário não autenticado. Faça login novamente.');
+      return;
+    }
+
     setErrors({});
     setSubmitStatus('saving');
     setSubmitMessage('');
 
-    setTimeout(() => {
+    try {
+      let finalPhotoUrl = existingPhotoUrl;
+      let finalPortfolio = existingPortfolio;
+
+      const professionalData = {
+        uid: targetUid,
+        userId: targetUid,
+        nome: fullName.trim() || 'Profissional',
+        bio: bio.trim(),
+        whatsapp: whatsapp.trim(),
+        categorias: selectedCategories,
+        bairrosAtendimento: neighborhoods,
+        valorDiaria: rate.trim(),
+        disponibilidade: availability,
+        fotoUrl: finalPhotoUrl,
+        portfolio: finalPortfolio,
+        atualizadoEm: new Date().toISOString(),
+      };
+
+      // 1. Salva na coleção `professionals`
+      await setDoc(doc(db, 'professionals', targetUid), professionalData, { merge: true });
+
+      // 2. Atualiza na coleção `users`
+      await setDoc(
+        doc(db, 'users', targetUid),
+        {
+          uid: targetUid,
+          nome: fullName.trim() || 'Profissional',
+          telefone: whatsapp.trim(),
+          fotoUrl: finalPhotoUrl,
+          categorias: selectedCategories,
+          cidade: neighborhoods[0] || '',
+        },
+        { merge: true }
+      );
+
+      // 3. Atualiza cache local
+      const raw = window.localStorage.getItem('resolveJaAuth');
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw);
+          parsed.fullName = fullName.trim() || 'Profissional';
+          parsed.phone = whatsapp.trim();
+          parsed.category = selectedCategories[0] || '';
+          parsed.fotoUrl = finalPhotoUrl;
+          if (neighborhoods[0]) parsed.city = neighborhoods[0];
+          window.localStorage.setItem('resolveJaAuth', JSON.stringify(parsed));
+        } catch {
+          // ignora
+        }
+      }
+
+      setExistingPhotoUrl(finalPhotoUrl);
+      setExistingPortfolio(finalPortfolio);
       setSubmitStatus('success');
-      setSubmitMessage('Perfil atualizado com sucesso.');
-    }, 400);
+      setSubmitMessage('Perfil atualizado com sucesso no Firebase!');
+
+      setTimeout(() => {
+        navigate('/prestador/perfil');
+      }, 1200);
+    } catch (err) {
+      console.error('Erro ao salvar perfil no Firebase:', err);
+      setSubmitStatus('error');
+      setSubmitMessage('Erro ao salvar perfil no Firebase. Tente novamente.');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[var(--color-bg-light)]">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
@@ -245,7 +360,7 @@ const ProfessionalProfileEditPage = () => {
               <Input
                 label="Nome completo"
                 name="fullName"
-                placeholder="Carlos Mendes"
+                placeholder="Ex.: Carlos Mendes"
                 value={fullName}
                 onChange={(event) => setFullName(event.target.value)}
               />
@@ -273,8 +388,9 @@ const ProfessionalProfileEditPage = () => {
                   onChange={(event) => setBio(event.target.value)}
                   maxLength={300}
                   rows={5}
-                  className={`mt-3 w-full rounded-3xl border px-4 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200 ${errors.bio ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-200'
-                    }`}
+                  className={`mt-3 w-full rounded-3xl border px-4 py-3 text-sm outline-none transition focus:border-slate-900 focus:ring-2 focus:ring-slate-200 ${
+                    errors.bio ? 'border-rose-500 focus:border-rose-500 focus:ring-rose-100' : 'border-slate-200'
+                  }`}
                   placeholder="Fale sobre sua experiência, especialidades e tipo de serviço oferecido."
                   aria-invalid={Boolean(errors.bio)}
                   aria-describedby={errors.bio ? 'bio-error' : 'bio-helptext'}
@@ -308,10 +424,11 @@ const ProfessionalProfileEditPage = () => {
                           key={category.id}
                           type="button"
                           onClick={() => handleToggleCategory(category.nome)}
-                          className={`rounded-3xl border px-4 py-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] ${active
+                          className={`rounded-3xl border px-4 py-3 text-left text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] ${
+                            active
                               ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)] text-[var(--color-navy)]'
                               : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                            }`}
+                          }`}
                           aria-pressed={active}
                         >
                           <div className="font-semibold">{category.nome}</div>
@@ -325,56 +442,7 @@ const ProfessionalProfileEditPage = () => {
               </div>
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2">
-              <div className="space-y-4">
-                <label className="block text-sm font-semibold text-slate-900">Foto de perfil</label>
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <label className="inline-flex min-h-[108px] min-w-[108px] items-center justify-center rounded-[28px] border border-dashed border-slate-300 bg-slate-50 px-4 py-4 text-center text-sm text-slate-500 transition hover:border-slate-400 hover:bg-slate-100">
-                    {profilePhotoPreview ? (
-                      <img src={profilePhotoPreview} alt="Prévia da foto de perfil" className="h-full w-full rounded-3xl object-cover" />
-                    ) : (
-                      'Selecionar foto'
-                    )}
-                    <input
-                      type="file"
-                      accept="image/png, image/jpeg"
-                      onChange={handleProfilePhotoChange}
-                      className="sr-only"
-                    />
-                  </label>
-                  <div className="space-y-2 text-sm text-slate-500">
-                    <p>JPEG/PNG até 5MB.</p>
-                    <p className="text-slate-400">Obrigatório para publicar o perfil.</p>
-                  </div>
-                </div>
-                {errors.profilePhoto ? <p className="text-xs text-rose-600">{errors.profilePhoto}</p> : null}
-              </div>
 
-              <div className="space-y-4">
-                <label className="block text-sm font-semibold text-slate-900">Portfólio</label>
-                <div className="space-y-3 rounded-[28px] border border-slate-200 bg-slate-50 p-4">
-                  <label className="inline-flex cursor-pointer items-center justify-center rounded-3xl bg-white px-4 py-3 text-sm font-semibold text-[var(--color-navy)] shadow-sm transition hover:bg-slate-100">
-                    Selecionar imagens
-                    <input
-                      type="file"
-                      accept="image/png, image/jpeg"
-                      multiple
-                      onChange={handlePortfolioChange}
-                      className="sr-only"
-                    />
-                  </label>
-                  <p className="text-xs text-slate-500">Até {maxPortfolioSize} fotos. JPEG/PNG, 5MB cada.</p>
-                </div>
-                {errors.portfolio ? <p className="text-xs text-rose-600">{errors.portfolio}</p> : null}
-                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  {portfolioPreviews.map((preview, index) => (
-                    <div key={`${preview}-${index}`} className="relative overflow-hidden rounded-3xl border border-slate-200 bg-white">
-                      <img src={preview} alt={`Portfólio ${index + 1}`} className="h-28 w-full object-cover" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
 
             <div className="grid gap-6 lg:grid-cols-2">
               <div className="space-y-4">
@@ -419,11 +487,11 @@ const ProfessionalProfileEditPage = () => {
                 <Input
                   label="Valor por dia / hora"
                   name="rate"
-                  type="number"
-                  placeholder="R$ 240"
+                  type="text"
+                  placeholder="Ex.: R$ 240 / diária"
                   value={rate}
                   onChange={(event) => setRate(event.target.value)}
-                  helperText="Opcional; exibido no perfil"
+                  helperText="Opcional; exibido no seu perfil público"
                 />
               </div>
             </div>
@@ -442,16 +510,17 @@ const ProfessionalProfileEditPage = () => {
                     <div className="text-sm font-semibold text-slate-900">{day.label}</div>
                     <div className="flex flex-wrap gap-2">
                       {shifts.map((shift) => {
-                        const active = availability[day.key].includes(shift.key);
+                        const active = (availability[day.key] || []).includes(shift.key);
                         return (
                           <button
                             key={shift.key}
                             type="button"
                             onClick={() => handleToggleAvailability(day.key, shift.key)}
-                            className={`rounded-2xl border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] ${active
+                            className={`rounded-2xl border px-3 py-2 text-sm transition focus:outline-none focus:ring-2 focus:ring-[var(--color-secondary)] ${
+                              active
                                 ? 'border-[var(--color-secondary)] bg-[var(--color-secondary)] text-[var(--color-navy)]'
                                 : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
-                              }`}
+                            }`}
                             aria-pressed={active}
                           >
                             {shift.label}
@@ -465,7 +534,13 @@ const ProfessionalProfileEditPage = () => {
             </div>
 
             {submitMessage ? (
-              <div className={`rounded-3xl px-5 py-4 text-sm ${submitStatus === 'success' ? 'bg-emerald-100 text-emerald-900' : 'bg-rose-100 text-rose-900'}`}>
+              <div
+                className={`rounded-3xl px-5 py-4 text-sm font-medium ${
+                  submitStatus === 'success'
+                    ? 'bg-emerald-100 text-emerald-900 ring-1 ring-emerald-300'
+                    : 'bg-rose-100 text-rose-900 ring-1 ring-rose-300'
+                }`}
+              >
                 {submitMessage}
               </div>
             ) : null}
@@ -475,7 +550,7 @@ const ProfessionalProfileEditPage = () => {
                 Cancelar
               </Button>
               <Button type="submit" variant="primary" disabled={submitStatus === 'saving'}>
-                {submitStatus === 'saving' ? 'Salvando...' : 'Salvar'}
+                {submitStatus === 'saving' ? 'Salvando no Firebase...' : 'Salvar perfil'}
               </Button>
             </div>
           </form>

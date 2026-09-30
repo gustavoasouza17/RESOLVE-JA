@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
-import { doc, getDoc } from 'firebase/firestore';
-import { db } from '../../firebase';
+import { doc, getDoc, onSnapshot } from 'firebase/firestore';
+import { onAuthStateChanged } from 'firebase/auth';
+import { auth, db } from '../../firebase';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import Avatar from '../../components/atoms/Avatar';
 import Button from '../../components/atoms/Button';
@@ -25,6 +26,7 @@ const getAuthUser = () => {
       state?: string;
       phone?: string;
       email?: string;
+      fotoUrl?: string;
     };
   } catch {
     return null;
@@ -35,12 +37,32 @@ const ProfessionalProfilePage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const authUser = getAuthUser();
-  const profileId = id ?? authUser?.uid;
+  const [currentUid, setCurrentUid] = useState<string | null>(authUser?.uid ?? auth.currentUser?.uid ?? null);
+
+  useEffect(() => {
+    const unsub = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        setCurrentUid(user.uid);
+      } else {
+        const stored = getAuthUser();
+        setCurrentUid(stored?.uid ?? null);
+      }
+    });
+    return unsub;
+  }, []);
+
+  const profileId = id ?? currentUid;
 
   const [dbProfessional, setDbProfessional] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [reviews, setReviews] = useState<ReviewWithAuthor[]>([]);
   const [completedCount, setCompletedCount] = useState<number | null>(null);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('');
+  const [reportSent, setReportSent] = useState(false);
+  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
+  const [showAllReviews, setShowAllReviews] = useState(false);
 
   useEffect(() => {
     if (!profileId) {
@@ -48,28 +70,52 @@ const ProfessionalProfilePage = () => {
       return;
     }
 
-    const fetchProfile = async () => {
-      try {
-        const profRef = doc(db, 'professionals', profileId);
-        const snap = await getDoc(profRef);
-        if (snap.exists()) {
-          setDbProfessional(snap.data());
-        }
-      } catch (error) {
-        console.error('Erro ao buscar perfil do Firestore:', error);
-      } finally {
-        setLoading(false);
+    let profData: Record<string, unknown> | null = null;
+    let userData: Record<string, unknown> | null = null;
+
+    const updateProfileState = () => {
+      if (profData || userData) {
+        setDbProfessional({
+          ...userData,
+          ...profData,
+          nome: (profData?.nome as string) || (userData?.nome as string) || authUser?.fullName || '',
+          bio: (profData?.bio as string) ?? (userData?.bio as string) ?? '',
+          fotoUrl: (profData?.fotoUrl as string) || (userData?.fotoUrl as string) || '',
+          categorias: (profData?.categorias as string[]) || (userData?.categorias as string[]) || [],
+          whatsapp: (profData?.whatsapp as string) || (userData?.telefone as string) || '',
+          bairrosAtendimento:
+            (profData?.bairrosAtendimento as string[]) || (userData?.cidade ? [userData.cidade as string] : []),
+          disponibilidade: (profData?.disponibilidade as Record<string, string[]>) || {},
+          portfolio: (profData?.portfolio as string[]) || [],
+          valorDiaria: (profData?.valorDiaria as string) || '',
+        });
       }
+      setLoading(false);
     };
+
+    const unsubProf = onSnapshot(doc(db, 'professionals', profileId), (docSnap) => {
+      profData = docSnap.exists() ? (docSnap.data() as Record<string, unknown>) : null;
+      updateProfileState();
+    });
+
+    const unsubUser = onSnapshot(doc(db, 'users', profileId), (docSnap) => {
+      userData = docSnap.exists() ? (docSnap.data() as Record<string, unknown>) : null;
+      updateProfileState();
+    });
 
     const fetchReviews = async () => {
       if (!profileId) return;
       const data = await getReviewsForUser(profileId);
-      setReviews(data.filter((r) => r.tipo === 'cliente_para_prestador'));
+      // Lê todas as avaliações com comentários destinadas ao prestador
+      setReviews(data.filter((r) => !r.tipo || r.tipo === 'cliente_para_prestador'));
     };
 
-    fetchProfile();
     fetchReviews();
+
+    return () => {
+      unsubProf();
+      unsubUser();
+    };
   }, [profileId]);
 
   // Assina contagem em tempo real de serviços concluídos do prestador
@@ -79,6 +125,10 @@ const ProfessionalProfilePage = () => {
     return unsubscribe;
   }, [profileId]);
 
+  const calculatedAvg = reviews.length > 0
+    ? Math.round((reviews.reduce((acc, r) => acc + r.nota, 0) / reviews.length) * 10) / 10
+    : 0;
+
   const getProfessionalData = () => {
     // Se houver dados do Firestore, usar em prioritário
     if (dbProfessional) {
@@ -86,13 +136,25 @@ const ProfessionalProfilePage = () => {
         uid: profileId,
         nome: dbProfessional.nome || authUser?.fullName || 'Profissional',
         fotoUrl: dbProfessional.fotoUrl || '',
-        categorias: dbProfessional.categorias || (authUser?.category ? [authUser.category] : ['Prestador']),
+        categorias:
+          Array.isArray(dbProfessional.categorias) && dbProfessional.categorias.length > 0
+            ? dbProfessional.categorias
+            : (authUser?.category ? [authUser.category] : ['Prestador']),
         bio: dbProfessional.bio || 'Perfil do prestador cadastrado.',
         totalServicos: dbProfessional.totalServicos || 0,
-        totalAvaliacoes: dbProfessional.totalAvaliacoes || 0,
-        avaliacaoMedia: dbProfessional.avaliacaoMedia ?? 0,
+        totalAvaliacoes:
+          (dbProfessional.totalAvaliacoes && dbProfessional.totalAvaliacoes > 0)
+            ? dbProfessional.totalAvaliacoes
+            : reviews.length,
+        avaliacaoMedia:
+          (dbProfessional.avaliacaoMedia && dbProfessional.avaliacaoMedia > 0)
+            ? dbProfessional.avaliacaoMedia
+            : calculatedAvg,
         valorDiaria: dbProfessional.valorDiaria || 'Sob consulta',
-        bairrosAtendimento: dbProfessional.bairrosAtendimento || (authUser?.city ? [authUser.city] : ['Localidade']),
+        bairrosAtendimento:
+          Array.isArray(dbProfessional.bairrosAtendimento) && dbProfessional.bairrosAtendimento.length > 0
+            ? dbProfessional.bairrosAtendimento
+            : (authUser?.city ? [authUser.city] : ['Localidade']),
         disponibilidade: dbProfessional.disponibilidade || {
           segunda: [],
           terca: [],
@@ -102,7 +164,7 @@ const ProfessionalProfilePage = () => {
           sabado: [],
           domingo: [],
         },
-        portfolio: dbProfessional.portfolio || [],
+        portfolio: Array.isArray(dbProfessional.portfolio) ? dbProfessional.portfolio : [],
         whatsapp: dbProfessional.whatsapp || (authUser?.phone ?? ''),
       };
     }
@@ -112,12 +174,12 @@ const ProfessionalProfilePage = () => {
       return {
         uid: authUser.uid ?? 'prestador-atual',
         nome: authUser.fullName,
-        fotoUrl: '',
+        fotoUrl: authUser.fotoUrl || '',
         categorias: authUser.category ? [authUser.category] : ['Prestador'],
         bio: 'Perfil do prestador cadastrado. Atualize seus serviços e disponibilidade.',
         totalServicos: 0,
-        totalAvaliacoes: 0,
-        avaliacaoMedia: 0,
+        totalAvaliacoes: reviews.length,
+        avaliacaoMedia: calculatedAvg,
         valorDiaria: 'Sob consulta',
         bairrosAtendimento: authUser.city ? [authUser.city] : ['Localidade'],
         disponibilidade: {
@@ -134,7 +196,6 @@ const ProfessionalProfilePage = () => {
       };
     }
 
-    return null;
     return null;
   };
 
@@ -155,13 +216,6 @@ const ProfessionalProfilePage = () => {
     window.localStorage.removeItem('resolveJaAuth');
     navigate('/');
   };
-
-  const [selectedImage, setSelectedImage] = useState<string | null>(null);
-  const [isReportOpen, setIsReportOpen] = useState(false);
-  const [reportReason, setReportReason] = useState('');
-  const [reportSent, setReportSent] = useState(false);
-  const [isLogoutOpen, setIsLogoutOpen] = useState(false);
-
   const getDayLabel = (day: typeof availabilityDays[number]) => {
     const labels: Record<typeof availabilityDays[number], string> = {
       segunda: 'Segunda',
@@ -202,9 +256,12 @@ const ProfessionalProfilePage = () => {
     );
   }
 
-  const heroImage = selectedProfessional.portfolio[0] ?? selectedProfessional.fotoUrl;
+  const heroImage =
+    selectedProfessional.portfolio[0] ||
+    selectedProfessional.fotoUrl ||
+    'https://images.unsplash.com/photo-1581578731548-c64695cc6952?auto=format&fit=crop&w=1200&q=80';
   const portfolioItems = selectedProfessional.portfolio ?? [];
-  const reviewItems = reviews.slice(0, 3);
+  const reviewItems = showAllReviews ? reviews : reviews.slice(0, 5);
   const hasWhatsApp = Boolean(selectedProfessional.whatsapp?.trim());
   const availabilityDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
 
@@ -324,30 +381,46 @@ const ProfessionalProfilePage = () => {
             </div>
 
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
-              <div className="mb-6">
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Avaliações</p>
-                <p className="mt-2 text-base text-slate-600">Opiniões de clientes reais após o serviço.</p>
+              <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Avaliações e comentários</p>
+                  <p className="mt-2 text-base text-slate-600">Opiniões de clientes reais após o serviço.</p>
+                </div>
+                <span className="rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-[var(--color-navy)]">
+                  {reviews.length} {reviews.length === 1 ? 'avaliação' : 'avaliações'}
+                </span>
               </div>
 
               <div className="space-y-6">
                 {reviewItems.length > 0 ? (
-                  reviewItems.map((review) => (
-                    <ReviewCard
-                      key={review.id}
-                      author={review.autorNome}
-                      avatarUrl={review.autorFotoUrl || undefined}
-                      rating={review.nota}
-                      comment={review.comentario}
-                      date={new Date(review.criadoEm).toLocaleDateString('pt-BR', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric',
-                      })}
-                    />
-                  ))
+                  <>
+                    {reviewItems.map((review) => (
+                      <ReviewCard
+                        key={review.id}
+                        author={review.autorNome}
+                        avatarUrl={review.autorFotoUrl || undefined}
+                        rating={review.nota}
+                        comment={review.comentario}
+                        date={new Date(review.criadoEm).toLocaleDateString('pt-BR', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      />
+                    ))}
+                    {reviews.length > 5 && (
+                      <button
+                        type="button"
+                        onClick={() => setShowAllReviews(!showAllReviews)}
+                        className="w-full rounded-2xl border border-slate-200 bg-slate-50 py-3 text-center text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+                      >
+                        {showAllReviews ? 'Mostrar menos' : `Ver todas as ${reviews.length} avaliações`}
+                      </button>
+                    )}
+                  </>
                 ) : (
                   <div className="rounded-[28px] border border-dashed border-slate-300 bg-[var(--color-bg-light)] p-10 text-center text-sm text-slate-600">
-                    Ainda sem avaliações.
+                    Ainda sem avaliações ou comentários.
                   </div>
                 )}
               </div>
