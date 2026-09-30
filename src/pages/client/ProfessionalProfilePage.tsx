@@ -224,6 +224,7 @@ const ProfessionalProfilePage = () => {
       quinta: 'Quinta',
       sexta: 'Sexta',
       sabado: 'Sábado',
+      domingo: 'Domingo',
     };
     return labels[day];
   };
@@ -263,7 +264,7 @@ const ProfessionalProfilePage = () => {
   const portfolioItems = selectedProfessional.portfolio ?? [];
   const reviewItems = showAllReviews ? reviews : reviews.slice(0, 5);
   const hasWhatsApp = Boolean(selectedProfessional.whatsapp?.trim());
-  const availabilityDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'] as const;
+  const availabilityDays = ['segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado', 'domingo'] as const;
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
