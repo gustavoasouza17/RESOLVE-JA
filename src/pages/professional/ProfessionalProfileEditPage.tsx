@@ -123,24 +123,45 @@ const ProfessionalProfileEditPage = () => {
           stored?.fullName ||
           '';
         const initialBio = (profData?.bio as string) ?? (userData?.bio as string) ?? '';
-        const initialCategories =
-          (profData?.categorias as string[]) ||
-          (userData?.categorias as string[]) ||
-          (stored?.category ? [stored.category] : []);
+        
+        let initialCategories: string[] = [];
+        if (Array.isArray(profData?.categorias) && profData.categorias.length > 0) {
+          initialCategories = profData.categorias;
+        } else if (Array.isArray(userData?.categorias) && userData.categorias.length > 0) {
+          initialCategories = userData.categorias;
+        } else if (stored?.category) {
+          initialCategories = [stored.category];
+        }
+
         const initialWhatsapp =
           (profData?.whatsapp as string) ||
           (userData?.telefone as string) ||
           stored?.phone ||
           '';
-        const initialRate = (profData?.valorDiaria as string) || '';
-        const initialNeighborhoods =
-          (profData?.bairrosAtendimento as string[]) ||
-          (userData?.cidade ? [userData.cidade as string] : []);
-        const loadedAvailability =
-          (profData?.disponibilidade as Record<DayKey, Shift[]>) || initialAvailability;
+          
+        const initialRate = profData?.valorDiaria ? String(profData.valorDiaria) : '';
+        
+        let initialNeighborhoods: string[] = [];
+        if (Array.isArray(profData?.bairrosAtendimento) && profData.bairrosAtendimento.length > 0) {
+          initialNeighborhoods = profData.bairrosAtendimento;
+        } else if (userData?.cidade) {
+          initialNeighborhoods = [userData.cidade as string];
+        }
+
+        const loadedAvailability = (profData?.disponibilidade as Record<DayKey, Shift[]>) || initialAvailability;
+        const safeAvailability: Record<DayKey, Shift[]> = {
+          segunda: Array.isArray(loadedAvailability.segunda) ? loadedAvailability.segunda : [],
+          terca: Array.isArray(loadedAvailability.terca) ? loadedAvailability.terca : [],
+          quarta: Array.isArray(loadedAvailability.quarta) ? loadedAvailability.quarta : [],
+          quinta: Array.isArray(loadedAvailability.quinta) ? loadedAvailability.quinta : [],
+          sexta: Array.isArray(loadedAvailability.sexta) ? loadedAvailability.sexta : [],
+          sabado: Array.isArray(loadedAvailability.sabado) ? loadedAvailability.sabado : [],
+          domingo: Array.isArray(loadedAvailability.domingo) ? loadedAvailability.domingo : [],
+        };
+
         const initialPhoto =
           (profData?.fotoUrl as string) || (userData?.fotoUrl as string) || stored?.fotoUrl || '';
-        const initialPortfolio = (profData?.portfolio as string[]) || [];
+        const initialPortfolio = Array.isArray(profData?.portfolio) ? profData.portfolio : [];
 
         setFullName(initialName);
         setBio(initialBio);
@@ -148,15 +169,7 @@ const ProfessionalProfileEditPage = () => {
         setWhatsapp(initialWhatsapp);
         setRate(initialRate);
         setNeighborhoods(initialNeighborhoods);
-        setAvailability({
-          segunda: loadedAvailability.segunda || [],
-          terca: loadedAvailability.terca || [],
-          quarta: loadedAvailability.quarta || [],
-          quinta: loadedAvailability.quinta || [],
-          sexta: loadedAvailability.sexta || [],
-          sabado: loadedAvailability.sabado || [],
-          domingo: loadedAvailability.domingo || [],
-        });
+        setAvailability(safeAvailability);
         setExistingPhotoUrl(initialPhoto);
         setExistingPortfolio(initialPortfolio);
       } catch (err) {
