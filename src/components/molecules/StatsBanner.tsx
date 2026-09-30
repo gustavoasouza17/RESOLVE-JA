@@ -20,15 +20,15 @@ const StatsBanner = ({
     >
       <div className="mb-5 max-w-xl">
         <p className="text-sm font-semibold uppercase tracking-[0.22em] text-[var(--color-secondary)]/90">Destaque</p>
-        <h2 className="mt-3 text-2xl font-bold leading-tight sm:text-3xl">{title}</h2>
+        <h2 className="mt-3 max-w-[15ch] text-2xl font-bold leading-tight break-words sm:text-3xl">{title}</h2>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-3">
         {metrics.map((metric) => (
-          <div key={metric.label} className="min-w-0 rounded-[16px] bg-white/10 p-4 backdrop-blur-xl">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-200/80 break-normal">{metric.label}</p>
-            <p className="mt-3 text-3xl font-bold leading-none text-white break-normal">{metric.value}</p>
-            {metric.hint ? <p className="mt-2 text-sm text-slate-100/80 break-normal">{metric.hint}</p> : null}
+          <div key={metric.label} className="min-w-0 overflow-hidden rounded-[16px] bg-white/10 p-4 backdrop-blur-xl">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-200/80 break-words leading-snug">{metric.label}</p>
+            <p className="mt-3 text-3xl font-bold leading-none text-white break-words">{metric.value}</p>
+            {metric.hint ? <p className="mt-2 text-sm text-slate-100/80 break-words leading-snug">{metric.hint}</p> : null}
           </div>
         ))}
       </div>

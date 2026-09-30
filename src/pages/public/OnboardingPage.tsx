@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import CategoryCard from '../../components/molecules/CategoryCard';
@@ -187,14 +187,6 @@ const OnboardingPage = () => {
               Encontre profissionais qualificados, avaliados e próximos de você em segundos. Compare serviços, veja avaliações reais e comece a conversar via WhatsApp sem sair do app.
             </p>
 
-            <div className="flex flex-col gap-4 sm:flex_row sm:items-center">
-              <Link to="/buscar">
-                <Button variant="secondary" className="w-full sm:w-auto">
-                  Ver categorias
-                </Button>
-              </Link>
-            </div>
-
             <div className="rounded-[20px] bg-[var(--color-surface-lowest)]/90 p-5 shadow-[0_16px_48px_rgba(26,43,76,0.06)] backdrop-blur-xl">
               <p className="text-sm font-semibold text-[var(--color-navy)]">💡 Você sabia?</p>
               <p className="mt-2 text-sm text-slate-600">
@@ -203,114 +195,35 @@ const OnboardingPage = () => {
             </div>
           </div>
 
-          {/* CEP Lookup Form */}
-          <div className="rounded-[24px] bg-white p-6 shadow-[0_16px_48px_rgba(26,43,76,0.08)] ring-1 ring-slate-100">
-            <div className="space-y-4">
+          <div className="space-y-4">
+            <StatsBanner metrics={stats} />
+          </div>
+        </section>
+
+        <section className="mt-14 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
+          <div className="rounded-[24px] bg-[var(--color-surface-lowest)] p-6 shadow-[0_24px_80px_rgba(26,43,76,0.08)]">
+            <div className="mb-6 flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Consulta por CEP</p>
-                <h2 className="mt-1 text-2xl font-bold text-[var(--color-navy)]">
-                  Veja profissionais disponíveis no seu bairro
-                </h2>
-                <p className="mt-2 text-sm text-slate-600">
-                  Digite seu CEP para encontrar profissionais que atendem na sua região. Não é necessário criar conta.
-                </p>
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Categorias populares</p>
+                <h2 className="mt-2 text-2xl font-bold text-[var(--color-navy)]">Encontre o serviço certo</h2>
               </div>
+              <div className="rounded-2xl bg-[var(--color-bg-light)] px-3 py-2 text-sm text-slate-700">
+                {categoryCards.length} opções
+              </div>
+            </div>
 
-              <form onSubmit={handleCepSubmit} className="space-y-4">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <Input
-                    label="CEP"
-                    name="cep"
-                    type="text"
-                    placeholder="00000-000"
-                    value={cepInput}
-                    onChange={(e) => handleCepChange(e.target.value)}
-                    error={cepError}
-                    maxLength={9}
-                    className="flex-1"
-                    disabled={loadingProfessionals}
-                    inputMode="numeric"
-                  />
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    disabled={loadingProfessionals || !isCompleteCep(cepInput)}
-                    className="w-full sm:w-auto"
-                  >
-                    {loadingProfessionals ? 'Buscando…' : 'Buscar profissionais'}
-                  </Button>
-                </div>
-
-                {foundAddress && (
-                  <div className="rounded-[20px] bg-[var(--color-bg-light)] p-4 border border-slate-200">
-                    <p className="text-sm font-semibold text-[var(--color-navy)]">Localização encontrada</p>
-                    <p className="mt-1 text-sm text-slate-700">
-                      <strong>{foundAddress.bairro}</strong>, {foundAddress.localidade} - {foundAddress.uf}
-                    </p>
-                  </div>
-                )}
-              </form>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {categoryCards.map((category) => (
+                <CategoryCard
+                  key={category.title}
+                  icon={category.icon}
+                  label={category.title}
+                  description={category.subtitle}
+                  to={category.to}
+                />
+              ))}
             </div>
           </div>
-
-          {/* Professionals Results */}
-          {showProfessionals && (
-            <div className="mt-8 rounded-[24px] bg-white p-6 shadow-[0_16px_48px_rgba(26,43,76,0.08)] ring-1 ring-slate-100">
-              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-6">
-                <div>
-                  <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Resultado da busca</p>
-                  <h2 className="mt-1 text-2xl font-bold text-[var(--color-navy)]">
-                    Profissionais disponíveis
-                    {submittedCep && foundAddress && (
-                      <span className="text-base font-normal text-slate-500 ml-2">
-                        em {foundAddress.bairro}, {foundAddress.localidade} - {foundAddress.uf}
-                      </span>
-                    )}
-                  </h2>
-                </div>
-                <Button variant="outline-danger" onClick={handleCepReset}>
-                  Alterar CEP
-                </Button>
-              </div>
-
-              {loadingProfessionals ? (
-                <div className="flex flex-col items-center justify-center gap-3 rounded-[28px] bg-[var(--color-bg-light)] p-10 text-center">
-                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
-                  <p className="text-sm text-slate-600">Carregando profissionais…</p>
-                </div>
-              ) : professionalsError ? (
-                <div className="rounded-[28px] bg-red-50 p-6 text-sm text-red-800 ring-1 ring-red-200">
-                  <p className="font-semibold">Não foi possível carregar os profissionais.</p>
-                  <p className="mt-2">{professionalsError}</p>
-                  <Button variant="secondary" className="mt-4" onClick={() => loadProfessionalsByLocation(foundAddress!)}>
-                    Tentar novamente
-                  </Button>
-                </div>
-              ) : professionals.length === 0 ? (
-                <div className="rounded-[28px] bg-[var(--color-bg-light)] p-10 text-center text-sm text-slate-600">
-                  Nenhum profissional encontrado para esta região no momento.
-                  <p className="mt-2 text-xs text-slate-500">Tente buscar por uma categoria específica ou amplie a região.</p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {professionals.map((professional) => (
-                    <ProfessionalCard
-                      key={professional.uid}
-                      id={professional.uid}
-                      name={professional.nome}
-                      category={professional.categorias[0]}
-                      rating={professional.avaliacaoMedia}
-                      reviews={professional.totalAvaliacoes}
-                      services={professional.totalServicos}
-                      distance={`${professional.distanciaKm.toFixed(1)} km`}
-                      image={professional.fotoUrl}
-                      badgeLabel="Atende na região"
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
 
           <div className="rounded-[24px] bg-[var(--color-surface-lowest)] p-6 shadow-[0_24px_80px_rgba(26,43,76,0.08)]">
             <div className="flex items-center justify-between gap-3">
@@ -346,6 +259,41 @@ const OnboardingPage = () => {
               </button>
             </div>
 
+            <form onSubmit={handleCepSubmit} className="mt-6 space-y-4 rounded-[20px] bg-white p-4 shadow-[0_10px_24px_rgba(26,43,76,0.04)] ring-1 ring-slate-100">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                <Input
+                  label="CEP"
+                  name="cep"
+                  type="text"
+                  placeholder="00000-000"
+                  value={cepInput}
+                  onChange={(e) => handleCepChange(e.target.value)}
+                  error={cepError}
+                  maxLength={9}
+                  className="flex-1"
+                  disabled={loadingProfessionals}
+                  inputMode="numeric"
+                />
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={loadingProfessionals || !isCompleteCep(cepInput)}
+                  className="w-full sm:w-auto self-end"
+                >
+                  {loadingProfessionals ? 'Buscando…' : 'Buscar profissionais'}
+                </Button>
+              </div>
+
+              {foundAddress && (
+                <div className="rounded-[20px] bg-[var(--color-bg-light)] p-4 border border-slate-200">
+                  <p className="text-sm font-semibold text-[var(--color-navy)]">Localização encontrada</p>
+                  <p className="mt-1 text-sm text-slate-700">
+                    <strong>{foundAddress.bairro}</strong>, {foundAddress.localidade} - {foundAddress.uf}
+                  </p>
+                </div>
+              )}
+            </form>
+
             <div className="mt-6 space-y-4">
               {viewMode === 'list' ? (
                 <div className="space-y-4">
@@ -374,36 +322,6 @@ const OnboardingPage = () => {
                 </div>
               )}
             </div>
-          </div>
-        </section>
-
-        <section className="mt-14 grid gap-8 lg:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-[24px] bg-[var(--color-surface-lowest)] p-6 shadow-[0_24px_80px_rgba(26,43,76,0.08)]">
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <div>
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Categorias populares</p>
-                <h2 className="mt-2 text-2xl font-bold text-[var(--color-navy)]">Encontre o serviço certo</h2>
-              </div>
-              <div className="rounded-2xl bg-[var(--color-bg-light)] px-3 py-2 text-sm text-slate-700">
-                {categoryCards.length} opções
-              </div>
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {categoryCards.map((category) => (
-                <CategoryCard
-                  key={category.title}
-                  icon={category.icon}
-                  label={category.title}
-                  description={category.subtitle}
-                  to={category.to}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="space-y-4">
-            <StatsBanner metrics={stats} />
           </div>
         </section>
       </main>
