@@ -7,26 +7,11 @@ import {
 } from "react-router-dom";
 import BottomNav from "../../components/organisms/BottomNav";
 import MapView from "../../components/organisms/MapView";
+import type { MapProfessional } from "../../components/organisms/MapView";
 import Button from "../../components/atoms/Button";
 import StarRating from "../../components/atoms/StarRating";
 import categories from "../../constants/categories";
 import { getProfessionals, type ProfessionalCardData } from "../../services/professionals";
-
-// São Paulo approximate center (fallback)
-const SP_CENTER = { lat: -23.5505, lng: -46.6333 };
-
-function generateCoord(
-  baseLat: number,
-  baseLng: number,
-  distanceKm: number,
-  seed: number,
-): { lat: number; lng: number } {
-  const angle = (seed * 137.5) % 360;
-  const rad = (angle * Math.PI) / 180;
-  const latOffset = (distanceKm / 111) * Math.cos(rad);
-  const lngOffset = (distanceKm / 102) * Math.sin(rad);
-  return { lat: baseLat + latOffset, lng: baseLng + lngOffset };
-}
 
 const normalizeCategoryValue = (value: string) =>
   value
@@ -153,22 +138,26 @@ const SearchPage = () => {
     });
   };
 
-  const mapProfessionals = filtered.slice(0, 8).map((p, i) => {
-    const coord = generateCoord(
-      SP_CENTER.lat,
-      SP_CENTER.lng,
-      p.distanciaKm,
-      i + 1,
-    );
-    return {
+  // Somente prestadores com coordenadas reais aparecem no mapa
+  const mapProfessionals: MapProfessional[] = filtered
+    .filter(
+      (
+        professional
+      ): professional is ProfessionalCardData & {
+        latitude: number;
+        longitude: number;
+      } => professional.latitude != null && professional.longitude != null
+    )
+    .slice(0, 8)
+    .map((p) => ({
       uid: p.uid,
       nome: p.nome,
-      categoria: p.categorias[0],
-      lat: coord.lat,
-      lng: coord.lng,
-      distance: p.distanciaKm,
-    };
-  });
+      categoria: p.categorias[0] ?? "Profissional",
+      nota: p.avaliacaoMedia,
+      distanciaKm: p.distanciaKm,
+      latitude: p.latitude,
+      longitude: p.longitude,
+    }));
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
@@ -400,8 +389,10 @@ const SearchPage = () => {
           ) : (
             /* Results — map view */
             <MapView
+              clientLocation={null}
               professionals={mapProfessionals}
               onSelectProfessional={handleSelectProfessional}
+              visible={viewMode === "map"}
             />
           )}
         </div>

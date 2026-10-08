@@ -7,6 +7,8 @@ import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import BottomNav from '../../components/organisms/BottomNav';
 import categories from '../../constants/categories';
+import { applyCepMask, onlyNumbers } from '../../utils/cep';
+import { syncProfessionalLocation } from '../../services/professionals';
 
 type DayKey = 'segunda' | 'terca' | 'quarta' | 'quinta' | 'sexta' | 'sabado' | 'domingo';
 type Shift = 'manha' | 'tarde' | 'noite';
@@ -45,6 +47,7 @@ const getAuthUser = () => {
       phone?: string;
       email?: string;
       fotoUrl?: string;
+      cep?: string;
     };
   } catch {
     return null;
@@ -64,7 +67,6 @@ const initialAvailability: Record<DayKey, Shift[]> = {
 const ProfessionalProfileEditPage = () => {
   const navigate = useNavigate();
   const authUser = getAuthUser();
-  const maxPortfolioSize = 10;
 
   const [uid, setUid] = useState<string | null>(authUser?.uid ?? auth.currentUser?.uid ?? null);
   const [loading, setLoading] = useState(true);
@@ -75,6 +77,7 @@ const ProfessionalProfileEditPage = () => {
     authUser?.category ? [authUser.category] : []
   );
   const [whatsapp, setWhatsapp] = useState(authUser?.phone ?? '');
+  const [cep, setCep] = useState('');
   const [rate, setRate] = useState('');
   const [neighborhoodInput, setNeighborhoodInput] = useState('');
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
@@ -133,6 +136,11 @@ const ProfessionalProfileEditPage = () => {
           stored?.phone ||
           '';
         const initialRate = (profData?.valorDiaria as string) || '';
+        const initialCep =
+          (profData?.cep as string) ||
+          (userData?.cep as string) ||
+          stored?.cep ||
+          '';
         const initialNeighborhoods =
           (profData?.bairrosAtendimento as string[]) ||
           (userData?.cidade ? [userData.cidade as string] : []);
@@ -147,6 +155,7 @@ const ProfessionalProfileEditPage = () => {
         setSelectedCategories(initialCategories);
         setWhatsapp(initialWhatsapp);
         setRate(initialRate);
+        setCep(initialCep ? applyCepMask(initialCep) : '');
         setNeighborhoods(initialNeighborhoods);
         setAvailability({
           segunda: loadedAvailability.segunda || [],
@@ -270,8 +279,8 @@ const ProfessionalProfileEditPage = () => {
     setSubmitMessage('');
 
     try {
-      let finalPhotoUrl = existingPhotoUrl;
-      let finalPortfolio = existingPortfolio;
+      const finalPhotoUrl = existingPhotoUrl;
+      const finalPortfolio = existingPortfolio;
 
       const professionalData = {
         uid: targetUid,
@@ -285,6 +294,7 @@ const ProfessionalProfileEditPage = () => {
         disponibilidade: availability,
         fotoUrl: finalPhotoUrl,
         portfolio: finalPortfolio,
+        cep: onlyNumbers(cep),
         atualizadoEm: new Date().toISOString(),
       };
 
@@ -301,9 +311,22 @@ const ProfessionalProfileEditPage = () => {
           fotoUrl: finalPhotoUrl,
           categorias: selectedCategories,
           cidade: neighborhoods[0] || '',
+          cep: onlyNumbers(cep),
         },
         { merge: true }
       );
+
+      // 3. Gera/atualiza latitude+longitude no Firestore.
+      // Só geocodifica quando o CEP/bairros mudaram (Nominatim: máx. 1 req/s).
+      try {
+        await syncProfessionalLocation(targetUid, {
+          cep: onlyNumbers(cep),
+          neighborhoods,
+          cidade: neighborhoods[0] || '',
+        });
+      } catch (geoError) {
+        console.warn('Não foi possível atualizar as coordenadas do perfil:', geoError);
+      }
 
       // 3. Atualiza cache local
       const raw = window.localStorage.getItem('resolveJaAuth');
@@ -314,6 +337,7 @@ const ProfessionalProfileEditPage = () => {
           parsed.phone = whatsapp.trim();
           parsed.category = selectedCategories[0] || '';
           parsed.fotoUrl = finalPhotoUrl;
+          parsed.cep = onlyNumbers(cep);
           if (neighborhoods[0]) parsed.city = neighborhoods[0];
           window.localStorage.setItem('resolveJaAuth', JSON.stringify(parsed));
         } catch {
@@ -373,6 +397,26 @@ const ProfessionalProfileEditPage = () => {
                 onChange={(event) => setWhatsapp(event.target.value)}
                 error={errors.whatsapp}
                 helperText="Ex.: 11 98888-0000"
+              />
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <Input
+                label="CEP"
+                name="cep"
+                placeholder="00000-000"
+                value={cep}
+                onChange={(event) => setCep(applyCepMask(event.target.value))}
+                helperText="Opcional; posiciona seu pin no mapa com precisão"
+              />
+              <Input
+                label="Valor por dia / hora"
+                name="rate"
+                type="text"
+                placeholder="Ex.: R$ 240 / diária"
+                value={rate}
+                onChange={(event) => setRate(event.target.value)}
+                helperText="Opcional; exibido no seu perfil público"
               />
             </div>
 
@@ -481,18 +525,6 @@ const ProfessionalProfileEditPage = () => {
                   ))}
                 </div>
                 {errors.neighborhoods ? <p className="text-xs text-rose-600">{errors.neighborhoods}</p> : null}
-              </div>
-
-              <div className="space-y-4">
-                <Input
-                  label="Valor por dia / hora"
-                  name="rate"
-                  type="text"
-                  placeholder="Ex.: R$ 240 / diária"
-                  value={rate}
-                  onChange={(event) => setRate(event.target.value)}
-                  helperText="Opcional; exibido no seu perfil público"
-                />
               </div>
             </div>
 
