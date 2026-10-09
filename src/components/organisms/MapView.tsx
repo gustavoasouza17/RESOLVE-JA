@@ -61,6 +61,12 @@ type MapViewProps = {
   /** Chama `invalidateSize()` quando o container volta a ficar visível. */
   visible?: boolean;
   loading?: boolean;
+  /** Suprime a mensagem "Nenhum profissional…" enquanto os pins carregam. */
+  loadingData?: boolean;
+  /** Mensagem principal do estado vazio (sem profissionais na área). */
+  emptyMessage?: string;
+  /** Detalhe sob a mensagem do estado vazio (ex.: raio pesquisado). */
+  emptyMessageDetail?: string;
   className?: string;
 };
 
@@ -71,6 +77,9 @@ const MapView = ({
   onRelocate,
   visible = true,
   loading = false,
+  loadingData = false,
+  emptyMessage = 'Nenhum profissional encontrado nesta área ainda.',
+  emptyMessageDetail,
   className = '',
 }: MapViewProps) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -285,11 +294,21 @@ const MapView = ({
         📍 Recentrar mapa
       </button>
 
-      {!loading && professionals.length === 0 && (
+      {/* Estado vazio: busca concluída (loading encerrado) e
+          sem profissionais na área/raio do mapa. */}
+      {!loading && !loadingData && professionals.length === 0 && (
         <div className="pointer-events-none absolute inset-0 z-[900] flex items-center justify-center p-5">
-          <p className="rounded-full bg-white/90 px-4 py-2 text-sm text-slate-600 shadow ring-1 ring-slate-200">
-            Nenhum profissional encontrado nesta área ainda.
-          </p>
+          <div className="w-full max-w-sm rounded-[24px] bg-white/95 px-6 py-5 text-center shadow-lg ring-1 ring-slate-200">
+            <p className="text-2xl">📍</p>
+            <p className="mt-2 text-sm font-semibold text-slate-800">
+              {emptyMessage}
+            </p>
+            {emptyMessageDetail ? (
+              <p className="mt-1 text-xs text-slate-500">
+                {emptyMessageDetail}
+              </p>
+            ) : null}
+          </div>
         </div>
       )}
     </div>

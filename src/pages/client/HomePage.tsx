@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import BottomNav from '../../components/organisms/BottomNav';
 import NotificationBell from '../../components/molecules/NotificationBell';
@@ -11,14 +11,18 @@ import CategoryCard from '../../components/molecules/CategoryCard';
 import ProfessionalCard from '../../components/molecules/ProfessionalCard';
 import categories from '../../constants/categories';
 import { getProfessionals, type ProfessionalCardData } from '../../services/professionals';
-import { geocodeAddress } from '../../services/geocoding';
+import { geocodeAddress, resolveCepLocation } from '../../services/geocoding';
 import { useLocation } from '../../hooks/useLocation';
 import { haversineKm } from '../../utils/geo';
-import {
-  applyCepMask,
-  fetchAddressByCep,
-  onlyNumbers,
-} from '../../utils/cep';
+import type { GeoPoint } from '../../utils/geo';
+import { withTimeout } from '../../utils/async';
+import { applyCepMask, onlyNumbers } from '../../utils/cep';
+
+/** Timeout de segurança para as etapas de rede (ViaCEP, geocoding, Firestore). */
+const LOOKUP_TIMEOUT_MS = 10000;
+
+/** Radii used by the CEP/bairro search, in km (auto-expansion order). */
+const SEARCH_RADII_KM = [5, 10, 20];
 
 const iconMap: Record<string, string> = {
   hammer: '🧱',
@@ -68,6 +72,10 @@ const HomePage = () => {
   const [locationInput, setLocationInput] = useState('');
   const [locationLookupError, setLocationLookupError] = useState('');
   const [locationLookupLoading, setLocationLookupLoading] = useState(false);
+  // Protege contra respostas obsoletas de buscas anteriores
+  const lookupRequestIdRef = useRef(0);
+  // Recarrega os profissionais do Firestore ("Tentar novamente")
+  const [retryToken, setRetryToken] = useState(0);
   const userName = getUserName();
 
   useEffect(() => {
@@ -91,14 +99,19 @@ const HomePage = () => {
       setLoadingProfessionals(true);
       setProfessionalsError('');
       try {
-        const data = await getProfessionals();
+        const data = await withTimeout(
+          getProfessionals(),
+          LOOKUP_TIMEOUT_MS
+        );
         if (!cancelled) {
           setProfessionals(data);
         }
       } catch (error) {
         console.error('Erro ao carregar profissionais do Firestore:', error);
         if (!cancelled) {
-          setProfessionalsError('Não foi possível carregar os profissionais. Tente novamente em instantes.');
+          setProfessionalsError(
+            'Não foi possível carregar os profissionais. Verifique sua conexão e tente novamente.'
+          );
         }
       } finally {
         if (!cancelled) {
@@ -112,7 +125,7 @@ const HomePage = () => {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [retryToken]);
 
   const categoryCards = useMemo(
     () =>
@@ -162,11 +175,44 @@ const HomePage = () => {
     );
   }, [professionals, effectiveLocation]);
 
-  const featuredProfessionals = rankedProfessionals.slice(0, 4);
+  // Busca por raio quando há localização manual (CEP/bairro):
+  // amplia automaticamente 5 km → 10 km → 20 km antes de desistir
+  let radiusSearch: {
+    radius: number;
+    results: RankedProfessional[];
+  } | null = null;
+
+  if (manualLocation) {
+    for (const radius of SEARCH_RADII_KM) {
+      const results = rankedProfessionals.filter(
+        (professional) =>
+          professional.distance != null && professional.distance <= radius
+      );
+
+      if (results.length > 0) {
+        radiusSearch = { radius, results };
+        break;
+      }
+    }
+
+    if (!radiusSearch) {
+      radiusSearch = {
+        radius: SEARCH_RADII_KM[SEARCH_RADII_KM.length - 1],
+        results: [],
+      };
+    }
+  }
+
+  // Sem busca manual: exibe todos ordenados por distância (comportamento do GPS)
+  const displayProfessionals = radiusSearch
+    ? radiusSearch.results
+    : rankedProfessionals;
+
+  const featuredProfessionals = displayProfessionals.slice(0, 4);
 
   // Somente prestadores com coordenadas reais vão para o mapa
   const mapProfessionals: MapProfessional[] = useMemo(() => {
-    const withCoords = rankedProfessionals.filter(
+    const withCoords = displayProfessionals.filter(
       (professional): professional is LocatedProfessional =>
         professional.latitude != null && professional.longitude != null
     );
@@ -180,7 +226,7 @@ const HomePage = () => {
       latitude: professional.latitude,
       longitude: professional.longitude,
     }));
-  }, [rankedProfessionals]);
+  }, [displayProfessionals]);
 
   const handleSearch = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -194,73 +240,71 @@ const HomePage = () => {
     navigate(`/profissional/${uid}`);
   };
 
-  // Fallback de localização por CEP (ViaCEP + Nominatim) ou bairro
-  const handleLocationLookup = async (event: React.FormEvent) => {
-    event.preventDefault();
-
+  // Fallback de localização por CEP (ViaCEP + Nominatim — mesma função do
+  // fluxo de perfil do prestador) ou bairro. Sempre encerra o loading.
+  const performLocationLookup = async () => {
     const query = locationInput.trim();
     const numbers = onlyNumbers(query);
+    const requestId = ++lookupRequestIdRef.current;
+
     setLocationLookupError('');
     setLocationLookupLoading(true);
 
     try {
+      let resolved: { point: GeoPoint; label: string } | null = null;
+
       if (numbers.length === 8) {
-        const address = await fetchAddressByCep(numbers);
-        if (!address) {
-          setLocationLookupError('CEP inválido. Verifique e tente novamente.');
-          return;
-        }
-
-        const fullQuery = [
-          address.logradouro,
-          address.bairro,
-          address.localidade,
-          address.uf,
-          'Brasil',
-        ]
-          .filter(Boolean)
-          .join(', ');
-
-        const point = await geocodeAddress(fullQuery);
-        if (!point) {
-          setLocationLookupError(
-            'Não foi possível localizar este CEP no mapa. Tente novamente.'
-          );
-          return;
-        }
-
-        setManualLocation({
-          latitude: point.latitude,
-          longitude: point.longitude,
-          accuracy: null,
-        });
-        setManualAddressLabel(`${address.bairro}, ${address.localidade} - ${address.uf}`);
+        resolved = await withTimeout(
+          resolveCepLocation(numbers),
+          LOOKUP_TIMEOUT_MS
+        );
       } else if (query.length >= 3) {
-        const point = await geocodeAddress(`${query}, Brasil`);
-        if (!point) {
-          setLocationLookupError(
-            'Não foi possível localizar este bairro. Tente novamente.'
-          );
-          return;
-        }
-
-        setManualLocation({
-          latitude: point.latitude,
-          longitude: point.longitude,
-          accuracy: null,
-        });
-        setManualAddressLabel(query);
+        const point = await withTimeout(
+          geocodeAddress(`${query}, Brasil`),
+          LOOKUP_TIMEOUT_MS
+        );
+        resolved = point ? { point, label: query } : null;
       } else {
-        setLocationLookupError('Informe um CEP válido ou o nome do bairro.');
+        if (requestId === lookupRequestIdRef.current) {
+          setLocationLookupError('Informe um CEP válido ou o nome do bairro.');
+        }
         return;
       }
+
+      // Ignora respostas de uma busca já substituída por outra mais recente
+      if (requestId !== lookupRequestIdRef.current) return;
+
+      if (!resolved) {
+        setLocationLookupError(
+          numbers.length === 8
+            ? 'CEP não encontrado. Verifique e tente novamente.'
+            : 'Não foi possível localizar este bairro. Tente novamente.'
+        );
+        return;
+      }
+
+      setManualLocation({
+        latitude: resolved.point.latitude,
+        longitude: resolved.point.longitude,
+        accuracy: null,
+      });
+      setManualAddressLabel(resolved.label);
     } catch {
-      setLocationLookupError(
-        'Não foi possível buscar a localização. Tente novamente.'
-      );
+      if (requestId === lookupRequestIdRef.current) {
+        setLocationLookupError(
+          'Não foi possível buscar a localização. Tente novamente.'
+        );
+      }
     } finally {
-      setLocationLookupLoading(false);
+      if (requestId === lookupRequestIdRef.current) {
+        setLocationLookupLoading(false);
+      }
     }
+  };
+
+  const handleLocationLookup = (event: React.FormEvent) => {
+    event.preventDefault();
+    void performLocationLookup();
   };
 
   const handleRelocate = () => {
@@ -359,11 +403,45 @@ const HomePage = () => {
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
               <div>
                 <p className="text-base font-semibold text-[var(--color-navy)]">Profissionais próximos</p>
-                <p className="text-sm text-slate-500">Veja os profissionais mais próximos do seu bairro.</p>
+                <p className="text-sm text-slate-500">
+                  {radiusSearch
+                    ? `Buscando num raio de ${radiusSearch.radius} km${manualAddressLabel ? ` de ${manualAddressLabel}` : ''}`
+                    : 'Veja os profissionais mais próximos do seu bairro.'}
+                </p>
               </div>
             </div>
 
-            {loadingProfessionals ? (
+            {/* Mapa: renderizado assim que há coordenadas —
+                DESACOPLADO do carregamento da lista de
+                profissionais. Mesmo com a busca do Firestore
+                em andamento (ou vazia), o mapa centraliza no
+                local pesquisado com o marcador do cliente. */}
+            {viewMode === 'map' ? (
+              <div className="mt-5">
+                <MapView
+                  clientLocation={effectiveLocation}
+                  professionals={mapProfessionals}
+                  onSelectProfessional={handleSelectProfessional}
+                  onRelocate={handleRelocate}
+                  visible={viewMode === 'map'}
+                  // O spinner só enquanto NÃO há posição alguma:
+                  // uma vez resolvido o CEP/bairro, o mapa não
+                  // fica preso no loading do GPS.
+                  loading={location.loading && !effectiveLocation}
+                  loadingData={loadingProfessionals}
+                  emptyMessage="Nenhum profissional encontrado nesta área ainda."
+                  emptyMessageDetail={
+                    radiusSearch
+                      ? `Nada num raio de ${radiusSearch.radius} km${
+                          manualAddressLabel
+                            ? ` de ${manualAddressLabel}`
+                            : ''
+                        }. Tente outro CEP ou bairro.`
+                      : 'Tente outro CEP ou bairro.'
+                  }
+                />
+              </div>
+            ) : loadingProfessionals ? (
               <div className="mt-5 flex flex-col items-center justify-center gap-3 rounded-[28px] bg-white p-10 text-center">
                 <div className="h-10 w-10 animate-spin rounded-full border-4 border-[var(--color-primary)] border-t-transparent"></div>
                 <p className="text-sm text-slate-600">Carregando profissionais…</p>
@@ -372,60 +450,69 @@ const HomePage = () => {
               <div className="mt-5 rounded-[28px] bg-red-50 p-6 text-sm text-red-800 ring-1 ring-red-200">
                 <p className="font-semibold">Não foi possível carregar os profissionais.</p>
                 <p className="mt-2">{professionalsError}</p>
+                <button
+                  type="button"
+                  onClick={() => setRetryToken((previous) => previous + 1)}
+                  className="mt-4 rounded-full bg-[var(--color-navy)] px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Tentar novamente
+                </button>
               </div>
             ) : (
-              <>
-                {viewMode === 'list' && (
-                  <div className="mt-5 grid gap-4 md:grid-cols-2">
-                    {featuredProfessionals.length > 0 ? (
-                      featuredProfessionals.map((professional, index) => (
-                        <ProfessionalCard
-                          key={professional.uid}
-                          id={professional.uid}
-                          name={professional.nome}
-                          category={professional.categorias[0] ?? 'Profissional'}
-                          rating={professional.avaliacaoMedia}
-                          reviews={professional.totalAvaliacoes}
-                          services={professional.totalServicos}
-                          distance={
-                            professional.distance != null
-                              ? `${professional.distance.toFixed(1)} km`
-                              : 'Distância indisponível'
-                          }
-                          image={professional.fotoUrl}
-                          badgeLabel={
-                            hasRealLocation && index === 0 &&
-                            professional.distance != null
-                              ? 'Mais perto'
-                              : undefined
-                          }
-                        />
-                      ))
+              <div className="mt-5 grid gap-4 md:grid-cols-2">
+                {featuredProfessionals.length > 0 ? (
+                  featuredProfessionals.map((professional, index) => (
+                    <ProfessionalCard
+                      key={professional.uid}
+                      id={professional.uid}
+                      name={professional.nome}
+                      category={professional.categorias[0] ?? 'Profissional'}
+                      rating={professional.avaliacaoMedia}
+                      reviews={professional.totalAvaliacoes}
+                      services={professional.totalServicos}
+                      distance={
+                        professional.distance != null
+                          ? `${professional.distance.toFixed(1)} km`
+                          : 'Distância indisponível'
+                      }
+                      image={professional.fotoUrl}
+                      badgeLabel={
+                        hasRealLocation && index === 0 &&
+                        professional.distance != null
+                          ? 'Mais perto'
+                          : undefined
+                      }
+                    />
+                  ))
+                ) : (
+                  <div className="rounded-[24px] bg-[var(--color-bg-light)] p-6 text-center text-slate-600">
+                    <p className="font-semibold">
+                      Nenhum profissional encontrado nesta área ainda.
+                    </p>
+                    {radiusSearch ? (
+                      <p className="mt-1 text-xs text-slate-500">
+                        Nada num raio de {radiusSearch.radius} km
+                        {manualAddressLabel
+                          ? ` de ${manualAddressLabel}`
+                          : ''}
+                        . Tente outro CEP ou bairro.
+                      </p>
                     ) : (
-                      <div className="rounded-[24px] bg-[var(--color-bg-light)] p-6 text-center text-slate-600">
-                        Nenhum profissional encontrado nesta área ainda.
-                      </div>
+                      <p className="mt-1 text-xs text-slate-500">
+                        Tente outro CEP ou bairro.
+                      </p>
                     )}
                   </div>
                 )}
-
-                <div className={viewMode === 'map' ? 'mt-5' : 'hidden'}>
-                  <MapView
-                    clientLocation={effectiveLocation}
-                    professionals={mapProfessionals}
-                    onSelectProfessional={handleSelectProfessional}
-                    onRelocate={handleRelocate}
-                    visible={viewMode === 'map'}
-                    loading={location.loading}
-                  />
-                </div>
-              </>
+              </div>
             )}
           </div>
         </section>
 
           <aside className="space-y-4">
-            {!location.loading && (location.error || !effectiveLocation) && (
+            {/* Cartão visível mesmo enquanto o GPS está pendente:
+                o usuário pode buscar por CEP/bairro sem esperar. */}
+            {(location.error || !effectiveLocation) && (
               <div className="rounded-[32px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
                   Localização

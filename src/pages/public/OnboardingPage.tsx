@@ -1,14 +1,28 @@
-import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
 import CategoryCard from '../../components/molecules/CategoryCard';
 import StatsBanner from '../../components/molecules/StatsBanner';
 import Navbar from '../../components/organisms/Navbar';
-import ProfessionalCard from '../../components/molecules/ProfessionalCard';
+import MapView from '../../components/organisms/MapView';
+import type {
+  MapClientLocation,
+  MapProfessional,
+} from '../../components/organisms/MapView';
 import categories from '../../constants/categories';
 import { getProfessionals, type ProfessionalCardData } from '../../services/professionals';
-import { applyCepMask, isCompleteCep, fetchAddressByCep } from '../../utils/cep';
+import { resolveCepLocation } from '../../services/geocoding';
+import { haversineKm } from '../../utils/geo';
+import { withTimeout } from '../../utils/async';
+import {
+  applyCepMask,
+  isCompleteCep,
+  onlyNumbers,
+} from '../../utils/cep';
+
+/** Timeout de segurança para as etapas de rede (ViaCEP, geocoding, Firestore). */
+const LOOKUP_TIMEOUT_MS = 10000;
 
 const iconMap: Record<string, string> = {
   hammer: '🧱',
@@ -31,15 +45,21 @@ const categoryCards = categories
     to: `/buscar/${encodeURIComponent(category.nome.toLowerCase())}`,
   }));
 
+type LocatedProfessional = ProfessionalCardData & {
+  distance: number | null;
+};
+
 const OnboardingPage = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const state = location.state as { userName?: string; profile?: string } | null;
   const userName = state?.userName;
+
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
   const [professionals, setProfessionals] = useState<ProfessionalCardData[]>([]);
   const [loadingStats, setLoadingStats] = useState(true);
 
-  // CEP lookup states
+  // CEP lookup states (consulta pública — sem login, sem gravar no Firestore)
   const [cepInput, setCepInput] = useState('');
   const [cepError, setCepError] = useState('');
   const [submittedCep, setSubmittedCep] = useState<string | null>(null);
@@ -48,9 +68,13 @@ const OnboardingPage = () => {
     localidade: string;
     uf: string;
   } | null>(null);
-  const [showProfessionals, setShowProfessionals] = useState(false);
-  const [loadingProfessionals, setLoadingProfessionals] = useState(false);
-  const [professionalsError, setProfessionalsError] = useState('');
+  /** Coordenadas do CEP pesquisado (ViaCEP + Nominatim — mesma função do perfil). */
+  const [searchedLocation, setSearchedLocation] =
+    useState<MapClientLocation | null>(null);
+  /** Resultados da busca por CEP (null = ainda não buscou). */
+  const [cepResults, setCepResults] = useState<LocatedProfessional[] | null>(null);
+  const [cepSearching, setCepSearching] = useState(false);
+  const [hasSearched, setHasSearched] = useState(false);
 
   const handleCepChange = (value: string) => {
     const masked = applyCepMask(value);
@@ -58,63 +82,80 @@ const OnboardingPage = () => {
     if (cepError) setCepError('');
   };
 
-  const handleCepSubmit = async (e: React.FormEvent) => {
+  const handleCepSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const numbers = onlyNumbers(cepInput);
+    void performCepSearch(onlyNumbers(cepInput));
+  };
 
+  const performCepSearch = async (numbers: string) => {
     if (!isCompleteCep(numbers)) {
       setCepError('CEP inválido. Verifique e tente novamente.');
       return;
     }
 
     setCepError('');
-    setLoadingProfessionals(true);
-    setProfessionalsError('');
+    setCepSearching(true);
 
     try {
-      const address = await fetchAddressByCep(numbers);
-      if (!address) {
+      // Mesma função CEP → coordenadas usada no fluxo de perfil
+      const resolved = await withTimeout(
+        resolveCepLocation(numbers),
+        LOOKUP_TIMEOUT_MS
+      );
+
+      if (!resolved) {
         setCepError('CEP não encontrado. Verifique e tente novamente.');
-        setLoadingProfessionals(false);
         return;
       }
 
       setFoundAddress({
-        bairro: address.bairro,
-        localidade: address.localidade,
-        uf: address.uf,
+        bairro: resolved.address.bairro,
+        localidade: resolved.address.localidade,
+        uf: resolved.address.uf,
       });
       setSubmittedCep(numbers);
-      setShowProfessionals(true);
-      await loadProfessionalsByLocation(address);
+      setSearchedLocation({
+        latitude: resolved.point.latitude,
+        longitude: resolved.point.longitude,
+        accuracy: null,
+      });
+      setHasSearched(true);
+
+      // Profissionais que atendem no bairro do CEP (mesma regra da lista)
+      const data = await withTimeout(getProfessionals(), LOOKUP_TIMEOUT_MS);
+      const targetBairro = resolved.address.bairro.toLowerCase();
+
+      const filtered: LocatedProfessional[] = data
+        .filter((prof) =>
+          (prof.bairrosAtendimento ?? []).some((bairro) =>
+            bairro.toLowerCase().includes(targetBairro)
+          )
+        )
+        .map((prof) => ({
+          ...prof,
+          distance:
+            prof.latitude != null && prof.longitude != null
+              ? haversineKm(resolved.point, {
+                  latitude: prof.latitude,
+                  longitude: prof.longitude,
+                })
+              : null,
+        }))
+        .sort(
+          (a, b) =>
+            (a.distance ?? Number.POSITIVE_INFINITY) -
+            (b.distance ?? Number.POSITIVE_INFINITY)
+        );
+
+      setCepResults(filtered);
     } catch (error) {
       console.error('Erro ao buscar CEP:', error);
-      setCepError('Erro ao buscar CEP. Tente novamente.');
-      setLoadingProfessionals(false);
-    }
-  };
-
-  const loadProfessionalsByLocation = async (address: { bairro: string; localidade: string; uf: string }) => {
-    try {
-      const data = await getProfessionals();
-      
-      // Filter professionals by neighborhood match (case-insensitive)
-      const filtered = data.filter((prof) => {
-        const bairros = prof.bairrosAtendimento || [];
-        const targetBairro = address.bairro.toLowerCase();
-
-        // Match by neighborhood (partial match)
-        if (bairros.some((b) => b.toLowerCase().includes(targetBairro))) return true;
-        
-        return false;
-      });
-
-      setProfessionals(filtered);
-    } catch (error) {
-      console.error('Erro ao carregar profissionais:', error);
-      setProfessionalsError('Não foi possível carregar os profissionais.');
+      setCepError(
+        'Não foi possível buscar a localização. Verifique sua conexão e tente novamente.'
+      );
     } finally {
-      setLoadingProfessionals(false);
+      // Sempre encerra o loading — sucesso, erro ou resultado vazio
+      setCepSearching(false);
     }
   };
 
@@ -122,8 +163,15 @@ const OnboardingPage = () => {
     setCepInput('');
     setSubmittedCep(null);
     setFoundAddress(null);
-    setShowProfessionals(false);
+    setSearchedLocation(null);
+    setCepResults(null);
+    setHasSearched(false);
     setCepError('');
+  };
+
+  // Botão "Recentrar mapa": re-geocodifica o CEP pesquisado
+  const handleRelocate = () => {
+    if (submittedCep) void performCepSearch(submittedCep);
   };
 
   useEffect(() => {
@@ -165,7 +213,40 @@ const OnboardingPage = () => {
     { value: loadingStats ? '…' : '100%', label: 'Compromisso' },
   ];
 
-  const professionalsPreview = professionals.slice(0, 2);
+  // Lista: prévia (2 primeiros) sem busca; resultados do CEP após a busca
+  const listProfessionals: (ProfessionalCardData & {
+    distance?: number | null;
+  })[] = cepResults ?? professionals.slice(0, 2);
+
+  // Pins do mapa: somente prestadores com coordenadas reais
+  const mapProfessionals: MapProfessional[] = useMemo(() => {
+    const source: (ProfessionalCardData & { distance?: number | null })[] =
+      cepResults ?? professionals;
+
+    const withCoords = source.filter(
+      (
+        professional
+      ): professional is ProfessionalCardData & {
+        distance?: number | null;
+        latitude: number;
+        longitude: number;
+      } =>
+        professional.latitude != null && professional.longitude != null
+    );
+
+    return withCoords.slice(0, 12).map((professional) => ({
+      uid: professional.uid,
+      nome: professional.nome,
+      categoria: professional.categorias[0] ?? 'Profissional',
+      nota: professional.avaliacaoMedia,
+      distanciaKm:
+        professional.distance != null
+          ? professional.distance
+          : professional.distanciaKm,
+      latitude: professional.latitude,
+      longitude: professional.longitude,
+    }));
+  }, [cepResults, professionals]);
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)]">
@@ -268,59 +349,115 @@ const OnboardingPage = () => {
                   placeholder="00000-000"
                   value={cepInput}
                   onChange={(e) => handleCepChange(e.target.value)}
-                  error={cepError}
                   maxLength={9}
                   className="flex-1"
-                  disabled={loadingProfessionals}
+                  disabled={cepSearching}
                   inputMode="numeric"
                 />
                 <Button
                   type="submit"
                   variant="primary"
-                  disabled={loadingProfessionals || !isCompleteCep(cepInput)}
+                  disabled={cepSearching || !isCompleteCep(cepInput)}
                   className="w-full sm:w-auto self-end"
                 >
-                  {loadingProfessionals ? 'Buscando…' : 'Buscar profissionais'}
+                  {cepSearching ? 'Buscando…' : 'Buscar profissionais'}
                 </Button>
               </div>
 
               {foundAddress && (
-                <div className="rounded-[20px] bg-[var(--color-bg-light)] p-4 border border-slate-200">
-                  <p className="text-sm font-semibold text-[var(--color-navy)]">Localização encontrada</p>
-                  <p className="mt-1 text-sm text-slate-700">
-                    <strong>{foundAddress.bairro}</strong>, {foundAddress.localidade} - {foundAddress.uf}
-                  </p>
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-[20px] bg-[var(--color-bg-light)] p-4 border border-slate-200">
+                  <div>
+                    <p className="text-sm font-semibold text-[var(--color-navy)]">Localização encontrada</p>
+                    <p className="mt-1 text-sm text-slate-700">
+                      <strong>{foundAddress.bairro}</strong>, {foundAddress.localidade} - {foundAddress.uf}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleCepReset}
+                    className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                  >
+                    Alterar CEP
+                  </button>
                 </div>
               )}
+
+              {cepError ? (
+                <div className="rounded-[16px] bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
+                  <p className="font-semibold">{cepError}</p>
+                  <button
+                    type="button"
+                    onClick={() => void performCepSearch(onlyNumbers(cepInput))}
+                    className="mt-3 rounded-full bg-[var(--color-navy)] px-5 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                  >
+                    Tentar novamente
+                  </button>
+                </div>
+              ) : null}
             </form>
 
             <div className="mt-6 space-y-4">
-              {viewMode === 'list' ? (
-                <div className="space-y-4">
-                  <div className="rounded-[20px] bg-[var(--color-surface-low)] p-5">
-                    <p className="text-sm font-semibold text-slate-500">Profissionais próximos</p>
-                    <div className="mt-4 space-y-3">
-                      {professionalsPreview.map((professional) => (
-                        <div key={professional.uid} className="rounded-[16px] bg-white p-4 shadow-[0_10px_24px_rgba(26,43,76,0.04)]">
+              {/* Lista: mesma busca por CEP, com o mesmo estado vazio */}
+              <div className={viewMode === 'list' ? 'space-y-4' : 'hidden'}>
+                <div className="rounded-[20px] bg-[var(--color-surface-low)] p-5">
+                  <p className="text-sm font-semibold text-slate-500">Profissionais próximos</p>
+                  <div className="mt-4 space-y-3">
+                    {listProfessionals.length > 0 ? (
+                      listProfessionals.map((professional) => (
+                        <button
+                          key={professional.uid}
+                          type="button"
+                          onClick={() => navigate(`/profissional/${professional.uid}`)}
+                          className="w-full rounded-[16px] bg-white p-4 text-left shadow-[0_10px_24px_rgba(26,43,76,0.04)] transition hover:ring-1 hover:ring-slate-200"
+                        >
                           <p className="font-semibold text-slate-900">
                             {professional.nome} · {professional.categorias[0]}
                           </p>
                           <p className="text-sm text-slate-500">
-                            {professional.distanciaKm.toFixed(1)} km · {professional.avaliacaoMedia} ★
+                            {professional.distance != null
+                              ? `${professional.distance.toFixed(1)} km`
+                              : `${professional.distanciaKm.toFixed(1)} km`}{' '}
+                            · {professional.avaliacaoMedia} ★
                           </p>
-                        </div>
-                      ))}
-                    </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="rounded-[16px] bg-white p-6 text-center text-slate-600">
+                        <p className="font-semibold">
+                          Nenhum profissional encontrado nesta área ainda.
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          Tente outro CEP ou bairro.
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </div>
-              ) : (
+              </div>
+
+              {/* Mapa: componente MapView compartilhado com o
+                  fluxo de perfil — centraliza no CEP pesquisado,
+                  pins com popup e aviso de área vazia. */}
+              <div className={viewMode === 'map' ? '' : 'hidden'}>
                 <div className="rounded-[20px] bg-[var(--color-surface-low)] p-5">
-                  <div className="aspect-[4/3] rounded-[16px] bg-gradient-to-br from-[var(--color-surface-high)] via-white to-[var(--color-secondary)]/40" />
+                  <MapView
+                    clientLocation={searchedLocation}
+                    professionals={mapProfessionals}
+                    onSelectProfessional={(uid) =>
+                      navigate(`/profissional/${uid}`)
+                    }
+                    onRelocate={handleRelocate}
+                    visible={viewMode === 'map'}
+                    loading={cepSearching && !searchedLocation}
+                    loadingData={cepSearching || !hasSearched}
+                    emptyMessage="Nenhum profissional encontrado nesta área ainda."
+                    emptyMessageDetail="Tente outro CEP ou bairro."
+                  />
                   <p className="mt-4 text-sm text-slate-600">
                     Veja os profissionais mais próximos na sua região com um mapa intuitivo.
                   </p>
                 </div>
-              )}
+              </div>
             </div>
           </div>
         </section>
@@ -328,9 +465,5 @@ const OnboardingPage = () => {
     </div>
   );
 };
-
-function onlyNumbers(value: string): string {
-  return value.replace(/\D/g, '');
-}
 
 export default OnboardingPage;
