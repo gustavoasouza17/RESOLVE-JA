@@ -429,16 +429,10 @@ const HomePage = () => {
                   // fica preso no loading do GPS.
                   loading={location.loading && !effectiveLocation}
                   loadingData={loadingProfessionals}
-                  emptyMessage="Nenhum profissional encontrado nesta área ainda."
-                  emptyMessageDetail={
-                    radiusSearch
-                      ? `Nada num raio de ${radiusSearch.radius} km${
-                          manualAddressLabel
-                            ? ` de ${manualAddressLabel}`
-                            : ''
-                        }. Tente outro CEP ou bairro.`
-                      : 'Tente outro CEP ou bairro.'
-                  }
+                  // Tela logada: resultado vazio não é erro — o mapa
+                  // simplesmente aparece limpo centralizado na posição
+                  // do cliente, sem aviso sobreposto.
+                  showEmptyNotice={false}
                 />
               </div>
             ) : loadingProfessionals ? (

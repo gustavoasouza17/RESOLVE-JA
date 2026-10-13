@@ -63,6 +63,8 @@ type MapViewProps = {
   loading?: boolean;
   /** Suprime a mensagem "Nenhum profissional…" enquanto os pins carregam. */
   loadingData?: boolean;
+  /** Exibe o aviso sobreposto quando não há pins no mapa. */
+  showEmptyNotice?: boolean;
   /** Mensagem principal do estado vazio (sem profissionais na área). */
   emptyMessage?: string;
   /** Detalhe sob a mensagem do estado vazio (ex.: raio pesquisado). */
@@ -78,6 +80,7 @@ const MapView = ({
   visible = true,
   loading = false,
   loadingData = false,
+  showEmptyNotice = true,
   emptyMessage = 'Nenhum profissional encontrado nesta área ainda.',
   emptyMessageDetail,
   className = '',
@@ -296,7 +299,7 @@ const MapView = ({
 
       {/* Estado vazio: busca concluída (loading encerrado) e
           sem profissionais na área/raio do mapa. */}
-      {!loading && !loadingData && professionals.length === 0 && (
+      {showEmptyNotice && !loading && !loadingData && professionals.length === 0 && (
         <div className="pointer-events-none absolute inset-0 z-[900] flex items-center justify-center p-5">
           <div className="w-full max-w-sm rounded-[24px] bg-white/95 px-6 py-5 text-center shadow-lg ring-1 ring-slate-200">
             <p className="text-2xl">📍</p>
