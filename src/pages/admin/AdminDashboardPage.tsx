@@ -1,30 +1,13 @@
 import Button from '../../components/atoms/Button';
 import Badge from '../../components/atoms/Badge';
 import categories from '../../constants/categories';
-import mockProfessionals from '../../constants/mockProfessionals';
-import mockProposals from '../../constants/mockProposals';
 
 const summaryCards = [
-  { label: 'Usuários totais', value: '1.248' },
-  { label: 'Profissionais ativos', value: '489' },
-  { label: 'Serviços realizados', value: '12.530' },
-  { label: 'Receita estimada', value: 'R$ 1.280.000' },
+  { label: 'Usuários totais', value: '—' },
+  { label: 'Profissionais ativos', value: '—' },
+  { label: 'Serviços realizados', value: '—' },
+  { label: 'Receita estimada', value: 'Dados de demonstração' },
 ];
-
-const users = mockProfessionals.slice(0, 3).map((professional) => ({
-  id: professional.uid,
-  name: professional.nome,
-  profile: 'Prestador',
-  status: professional.status === 'ativo' ? 'Ativo' : 'Suspenso',
-}));
-
-const reports = mockProposals.slice(0, 2).map((proposal, index) => ({
-  id: `r${index + 1}`,
-  reporter: proposal.clienteId,
-  reported: proposal.prestadorId,
-  reason: index === 0 ? 'Serviço não entregue' : 'Perfil falso',
-  date: index === 0 ? '01 jun 2026' : '28 mai 2026',
-}));
 
 const AdminDashboardPage = () => {
   return (
@@ -35,6 +18,7 @@ const AdminDashboardPage = () => {
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Painel administrativo</p>
               <h1 className="mt-3 text-3xl font-bold tracking-tight">Visão geral do sistema</h1>
+              <p className="mt-2 text-sm text-slate-500">Dados reais do Firestore em integração. Valores "—" indicam métrica ainda não conectada.</p>
             </div>
             <Button variant="primary">Criar usuário</Button>
           </div>
@@ -56,55 +40,15 @@ const AdminDashboardPage = () => {
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Usuários recentes</p>
                 <Button variant="secondary">Ver todos</Button>
               </div>
-              <div className="mt-6 overflow-x-auto">
-                <table className="min-w-full text-left text-sm">
-                  <thead>
-                    <tr className="border-b border-slate-200 text-slate-500">
-                      <th className="px-4 py-3">Nome</th>
-                      <th className="px-4 py-3">Perfil</th>
-                      <th className="px-4 py-3">Status</th>
-                      <th className="px-4 py-3">Ação</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {users.map((user) => (
-                      <tr key={user.id}>
-                        <td className="px-4 py-4 text-slate-700">{user.name}</td>
-                        <td className="px-4 py-4 text-slate-600">{user.profile}</td>
-                        <td className="px-4 py-4 text-slate-600">{user.status}</td>
-                        <td className="px-4 py-4">
-                          <Button variant="secondary">Ver perfil</Button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <div className="mt-6 text-sm text-slate-500">Sem dados reais conectados ainda (Exemplo).</div>
             </div>
 
             <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
               <div className="flex items-center justify-between gap-4">
                 <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Denúncias pendentes</p>
-                <Badge variant="default" label={`${reports.length}`} />
+                <Badge variant="default" label="0" />
               </div>
-              <div className="mt-6 space-y-4">
-                {reports.map((report) => (
-                  <div key={report.id} className="rounded-3xl bg-[var(--color-bg-light)] p-5">
-                    <div className="flex items-center justify-between gap-4">
-                      <div>
-                        <p className="font-semibold text-[var(--color-navy)]">{report.reason}</p>
-                        <p className="text-sm text-slate-600">Denunciante: {report.reporter}</p>
-                      </div>
-                      <span className="text-sm text-slate-500">{report.date}</span>
-                    </div>
-                    <p className="mt-3 text-sm text-slate-700">Denunciado: {report.reported}</p>
-                    <div className="mt-4 flex gap-3">
-                      <Button variant="primary">Ver perfil</Button>
-                      <Button variant="secondary">Marcar como lido</Button>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <div className="mt-6 text-sm text-slate-500">Sem denúncias (dados reais não disponíveis).</div>
             </div>
           </section>
 

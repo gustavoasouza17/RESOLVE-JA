@@ -1,0 +1,73 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAuth() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+    function userDoc() { return get(/databases/$(database)/documents/users/$(uid())).data; }
+    function isAdmin() { return isAuth() && userDoc().perfil == 'admin'; }
+    function isCliente() { return isAuth() && userDoc().perfil == 'cliente'; }
+    function isPrestador() { return isAuth() && userDoc().perfil == 'prestador'; }
+
+    // users: cada um le/edita apenas o próprio documento
+    match /users/{userId} {
+      allow read: if isAuth() && (uid() == userId || isAdmin());
+      allow create: if isAuth() && uid() == userId;
+      allow update: if isAuth() && (uid() == userId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // professionals: leitura pública de dados públicos; escrita só do dono/admin
+    match /professionals/{profId} {
+      allow read: if true;
+      allow create: if isAuth() && uid() == profId;
+      allow update: if isAuth() && (uid() == profId || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // proposals
+    match /proposals/{propId} {
+      allow read: if isAuth() && (
+        resource.data.clienteId == uid() ||
+        resource.data.prestadorId == uid() ||
+        (resource.data.status == 'aberta' && isPrestador()) ||
+        isAdmin()
+      );
+      allow create: if isAuth() && request.resource.data.clienteId == uid();
+      allow update: if isAuth() && (
+        resource.data.clienteId == uid() ||
+        resource.data.prestadorId == uid() ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
+    }
+
+    // reviews
+    match /reviews/{revId} {
+      allow read: if true;
+      allow create: if isAuth() && request.resource.data.avaliadorId == uid();
+      allow update, delete: if isAdmin();
+    }
+
+    // notifications
+    match /notifications/{notifId} {
+      allow read: if isAuth() && resource.data.destinatarioId == uid();
+      allow create: if isAuth();
+      allow update: if isAuth() && resource.data.destinatarioId == uid();
+      allow delete: if isAuth() && resource.data.destinatarioId == uid();
+    }
+
+    // publicStats
+    match /publicStats/{docId} {
+      allow read: if true;
+      allow create, update: if isAuth();
+      allow delete: if isAdmin();
+    }
+
+    // deny all else
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+EOF

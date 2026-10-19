@@ -1,11 +1,12 @@
-// import { useState } from 'react'
-// import reactLogo from './assets/react.svg'
-// import viteLogo from './assets/vite.svg'
-// import heroImg from './assets/hero.png'
-import AppRouter from './router/AppRouter'
+import { AuthProvider } from './contexts/AuthContext';
+import AppRouter from './router/AppRouter';
 
 function App() {
-  return <AppRouter />
+  return (
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;
