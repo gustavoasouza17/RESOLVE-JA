@@ -350,6 +350,84 @@ const HomePage = () => {
         </section>
 
         <section className="mt-6 rounded-[32px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
+            Localização
+          </p>
+
+          {location.error ? (
+            <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-amber-200">
+              {location.error}
+            </p>
+          ) : null}
+
+          {manualLocation ? (
+            <div className="mt-3 space-y-3">
+              <p className="text-sm text-slate-700">
+                Buscando perto de: <strong>{manualAddressLabel}</strong>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={handleRelocate}
+                  className="rounded-full bg-[var(--color-navy)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                >
+                  Usar minha localização
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setManualLocation(null);
+                    setManualAddressLabel('');
+                  }}
+                  className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
+                >
+                  Alterar
+                </button>
+              </div>
+            </div>
+          ) : (
+            <form onSubmit={handleLocationLookup} className="mt-3 space-y-2">
+              <p className="text-sm text-slate-600">
+                Informe seu CEP ou bairro para achar profissionais mais próximos:
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="CEP ou bairro"
+                  value={locationInput}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    setLocationInput(
+                      /^\d*$/.test(value.replace(/\D/g, '')) &&
+                        onlyNumbers(value).length > 0
+                        ? applyCepMask(value)
+                        : value
+                    );
+                    setLocationLookupError('');
+                  }}
+                  className="w-full min-w-0 flex-1 rounded-3xl border border-slate-200 bg-[var(--color-bg-light)] px-4 py-3 text-sm text-slate-800 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+                />
+                <button
+                  type="submit"
+                  disabled={
+                    locationLookupLoading ||
+                    (onlyNumbers(locationInput).length !== 8 &&
+                      locationInput.trim().length < 3)
+                  }
+                  className="shrink-0 rounded-full bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-navy)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {locationLookupLoading ? 'Buscando…' : 'Buscar'}
+                </button>
+              </div>
+              {locationLookupError ? (
+                <p className="text-xs text-rose-600">{locationLookupError}</p>
+              ) : null}
+            </form>
+          )}
+        </section>
+
+        <section className="mt-6 rounded-[32px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <p className="text-base font-bold text-[var(--color-navy)]">Categorias</p>
@@ -504,90 +582,6 @@ const HomePage = () => {
         </section>
 
           <aside className="space-y-4">
-            {/* Cartão visível mesmo enquanto o GPS está pendente:
-                o usuário pode buscar por CEP/bairro sem esperar. */}
-            {(location.error || !effectiveLocation) && (
-              <div className="rounded-[32px] bg-white p-5 shadow-sm ring-1 ring-slate-200">
-                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
-                  Localização
-                </p>
-
-                {location.error ? (
-                  <p className="mt-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-700 ring-1 ring-amber-200">
-                    {location.error}
-                  </p>
-                ) : null}
-
-                {manualLocation ? (
-                  <div className="mt-3 space-y-3">
-                    <p className="text-sm text-slate-700">
-                      Buscando perto de:{' '}
-                      <strong>{manualAddressLabel}</strong>
-                    </p>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        type="button"
-                        onClick={handleRelocate}
-                        className="rounded-full bg-[var(--color-navy)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
-                      >
-                        Usar minha localização
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setManualLocation(null);
-                          setManualAddressLabel('');
-                        }}
-                        className="rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-200"
-                      >
-                        Alterar
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <form onSubmit={handleLocationLookup} className="mt-3 space-y-2">
-                    <p className="text-sm text-slate-600">
-                      Informe seu CEP ou bairro para achar profissionais mais
-                      próximos:
-                    </p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        inputMode="numeric"
-                        placeholder="CEP ou bairro"
-                        value={locationInput}
-                        onChange={(event) => {
-                          const value = event.target.value;
-                          setLocationInput(
-                            /^\d*$/.test(value.replace(/\D/g, '')) &&
-                              onlyNumbers(value).length > 0
-                              ? applyCepMask(value)
-                              : value
-                          );
-                          setLocationLookupError('');
-                        }}
-                        className="w-full min-w-0 flex-1 rounded-3xl border border-slate-200 bg-[var(--color-bg-light)] px-4 py-3 text-sm text-slate-800 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
-                      />
-                      <button
-                        type="submit"
-                        disabled={
-                          locationLookupLoading ||
-                          (onlyNumbers(locationInput).length !== 8 &&
-                            locationInput.trim().length < 3)
-                        }
-                        className="shrink-0 rounded-full bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-navy)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        {locationLookupLoading ? 'Buscando…' : 'Buscar'}
-                      </button>
-                    </div>
-                    {locationLookupError ? (
-                      <p className="text-xs text-rose-600">{locationLookupError}</p>
-                    ) : null}
-                  </form>
-                )}
-              </div>
-            )}
-
             <div className="rounded-[32px] bg-[var(--color-navy)] p-5 text-white shadow-[0_24px_80px_rgba(26,43,76,0.18)]">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-[var(--color-primary)]">Destaque</p>
               <h2 className="mt-3 text-2xl font-bold">Precisa de ajuda rápida?</h2>
