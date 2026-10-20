@@ -39,11 +39,7 @@ service cloud.firestore {
         resource.data.prestadorId == uid() ||
         isAdmin()
       );
-      allow delete: if isAdmin() || (
-        isAuth() &&
-        (resource.data.clienteId == uid() || resource.data.prestadorId == uid()) &&
-        (resource.data.status == 'concluido' || resource.data.status == 'recusada')
-      );
+      allow delete: if isAdmin();
     }
 
     // reviews

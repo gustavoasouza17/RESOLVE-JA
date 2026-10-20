@@ -101,9 +101,9 @@ const professionalItems: NavItem[] = [
   {
     label: 'Novo',
     icon: () => <PlusIcon />,
-    path: '/prestador/perfil/editar',
+    path: '/prestador/home',
     isCenter: true,
-    matchPaths: ['/prestador/perfil/editar'],
+    matchPaths: [],
   },
   {
     label: 'Notificações',
@@ -153,6 +153,10 @@ const BottomNav = ({
     }
     if (item.isCenter && onCenterAction) {
       onCenterAction();
+      return;
+    }
+    if (item.isCenter && variant === 'professional') {
+      navigate(item.path, { state: { openNewPost: true } });
       return;
     }
     navigate(item.path);

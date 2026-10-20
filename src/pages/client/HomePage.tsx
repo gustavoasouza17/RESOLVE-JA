@@ -343,7 +343,7 @@ const HomePage = () => {
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Buscar profissionais ou categoria"
-              className="w-full rounded-[24px] border border-slate-200 bg-white px-5 py-4 text-sm text-slate-900 outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              className="w-full rounded-[24px] border border-slate-200 bg-white py-4 pl-12 pr-5 text-sm text-slate-900 outline-none transition focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
             />
             <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-lg text-slate-400">🔍</span>
           </form>

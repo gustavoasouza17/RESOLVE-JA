@@ -257,21 +257,6 @@ const ProfessionalRequestsPage = () => {
                           </Link>
                         )}
 
-                        {proposal.status === 'concluido' && reviewedProposalIds.has(proposal.id) && (
-                          <button
-                            type="button"
-                            aria-label={`Excluir solicitação concluída ${proposal.id}`}
-                            onClick={() => handleDeleteProposal(proposal.id)}
-                            disabled={deletingId === proposal.id}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
-                            title="Excluir solicitação concluída"
-                          >
-                            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
-                              <path d="M9 3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1h2a1 1 0 1 1 0 2H7a1 1 0 0 1 0-2h2Zm-2 5h10l-.8 10.4A2 2 0 0 1 14.2 20H9.8a2 2 0 0 1-1.99-1.6L7 8Zm3 2a1 1 0 0 0-1 1v6a1 1 0 1 0 2 0v-6a1 1 0 0 0-1-1Zm4 0a1 1 0 0 0-1 1v6a1 1 0 1 0 2 0v-6a1 1 0 0 0-1-1Z" />
-                            </svg>
-                          </button>
-                        )}
-
                         {proposal.status === 'recusada' && (
                           <button
                             type="button"
