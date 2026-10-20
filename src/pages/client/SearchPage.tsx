@@ -1,4 +1,6 @@
+import CategoryChips from "../../components/molecules/CategoryChips";
 import { useEffect, useState } from "react";
+import { useAuth } from "../../contexts/AuthContext";
 import {
   Link,
   useParams,
@@ -35,6 +37,8 @@ const SearchPage = () => {
   const { categoria } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user, role } = useAuth();
+  const backHome = user ? (role === "prestador" ? "/prestador/home" : "/home") : "/";
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [search, setSearch] = useState(searchParams.get("q") || "");
   const [selectedCategory, setSelectedCategory] = useState("");
@@ -184,7 +188,7 @@ const SearchPage = () => {
               type="button"
               variant="secondary"
               className="inline-flex items-center gap-2"
-              onClick={() => navigate("/")}
+              onClick={() => navigate(backHome)}
             >
               ← Tela principal
             </Button>
@@ -343,7 +347,7 @@ const SearchPage = () => {
                             {professional.nome}
                           </h2>
                           <p className="text-sm text-slate-500">
-                            {professional.categorias[0]}
+                            <CategoryChips categories={professional.categorias} highlight={selectedCategory} />
                           </p>
                         </div>
                         <Link

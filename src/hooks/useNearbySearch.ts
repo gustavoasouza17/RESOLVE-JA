@@ -57,4 +57,3 @@ export function useNearbySearch() {
 
   return { cepInput, cepError, foundAddress, searchedLocation, cepResults, cepSearching, hasSearched, viewMode, setViewMode, handleCepChange, handleCepSubmit, handleCepReset, performCepSearch, mapProfessionals, navigate };
 }
-EOF

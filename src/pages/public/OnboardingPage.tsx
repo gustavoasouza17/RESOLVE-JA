@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useAuth } from "../../contexts/AuthContext";
 import { useLocation, useNavigate } from 'react-router-dom';
 import Button from '../../components/atoms/Button';
 import Input from '../../components/atoms/Input';
@@ -6,6 +6,7 @@ import CategoryCard from '../../components/molecules/CategoryCard';
 import StatsBanner from '../../components/molecules/StatsBanner';
 import Navbar from '../../components/organisms/Navbar';
 import MapView from '../../components/organisms/MapView';
+import { useEffect, useMemo, useState } from 'react';
 import type {
   MapClientLocation,
   MapProfessional,
@@ -23,6 +24,8 @@ import {
 
 /** Timeout de segurança para as etapas de rede (ViaCEP, geocoding, Firestore). */
 const LOOKUP_TIMEOUT_MS = 10000;
+
+
 
 const iconMap: Record<string, string> = {
   hammer: '🧱',
@@ -50,8 +53,14 @@ type LocatedProfessional = ProfessionalCardData & {
 };
 
 const OnboardingPage = () => {
-  const location = useLocation();
   const navigate = useNavigate();
+  const { user, role, loading } = useAuth();
+  const location = useLocation();
+  useEffect(() => {
+    if (loading || !user) return;
+    const home = role === 'prestador' ? '/prestador/home' : '/home';
+    navigate(home, { replace: true });
+  }, [loading, user, role, navigate]);
   const state = location.state as { userName?: string; profile?: string } | null;
   const userName = state?.userName;
 
@@ -465,5 +474,6 @@ const OnboardingPage = () => {
     </div>
   );
 };
+
 
 export default OnboardingPage;
