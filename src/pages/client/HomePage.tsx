@@ -393,7 +393,7 @@ const HomePage = () => {
               <div className="flex gap-2">
                 <input
                   type="text"
-                  inputMode="numeric"
+                  inputMode="text"
                   placeholder="CEP ou bairro"
                   value={locationInput}
                   onChange={(event) => {

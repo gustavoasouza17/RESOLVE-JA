@@ -3,6 +3,9 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import BottomNav from '../../components/organisms/BottomNav';
 import NotificationBell from '../../components/molecules/NotificationBell';
+import { geocodeAddress, resolveCepLocation } from '../../services/geocoding';
+import { applyCepMask, onlyNumbers } from '../../utils/cep';
+import { withTimeout } from '../../utils/async';
 import {
   subscribeToPendingProposalsForPrestador,
   subscribeToOpenProposalsForCategory,
@@ -11,6 +14,8 @@ import {
 import { auth, db } from '../../firebase';
 import { doc, getDoc } from 'firebase/firestore';
 import type { MockProposal } from '../../constants/mockProposals';
+
+const LOCATION_LOOKUP_TIMEOUT_MS = 10000;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type WorkPost = {
@@ -380,6 +385,9 @@ const ProfessionalHomePage = () => {
   );
   const [posts, setPosts] = useState<WorkPost[]>([]);
   const [successToast, setSuccessToast] = useState('');
+  const [locationInput, setLocationInput] = useState('');
+  const [locationError, setLocationError] = useState('');
+  const [locationSearching, setLocationSearching] = useState(false);
 
   const [proposals, setProposals] = useState<MockProposal[]>([]);
   const [openProposals, setOpenProposals] = useState<MockProposal[]>([]);
@@ -490,6 +498,58 @@ const ProfessionalHomePage = () => {
     setTimeout(() => setSuccessToast(''), 3000);
   };
 
+  const handleLocationSearch = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const query = locationInput.trim();
+    const numbers = onlyNumbers(query);
+    const isNumericQuery = /^[\d\s.-]+$/.test(query);
+
+    if (!query || (isNumericQuery && numbers.length !== 8) || query.length < 3) {
+      setLocationError('Informe um CEP válido ou o nome do bairro.');
+      return;
+    }
+
+    setLocationError('');
+    setLocationSearching(true);
+
+    try {
+      const resolved = isNumericQuery
+        ? await withTimeout(
+            resolveCepLocation(numbers),
+            LOCATION_LOOKUP_TIMEOUT_MS
+          )
+        : await withTimeout(
+            geocodeAddress(`${query}, Brasil`),
+            LOCATION_LOOKUP_TIMEOUT_MS
+          );
+
+      if (!resolved) {
+        setLocationError(
+          isNumericQuery
+            ? 'CEP não encontrado. Verifique e tente novamente.'
+            : 'Não foi possível localizar esse bairro. Verifique e tente novamente.'
+        );
+        return;
+      }
+
+      const point = 'point' in resolved ? resolved.point : resolved;
+      const label = 'label' in resolved ? resolved.label : query;
+      const params = new URLSearchParams({
+        lat: String(point.latitude),
+        lng: String(point.longitude),
+        location: label,
+      });
+      navigate(`/buscar?${params.toString()}`);
+    } catch (error) {
+      console.error('Erro ao buscar profissionais por localização:', error);
+      setLocationError(
+        'Não foi possível buscar profissionais agora. Verifique sua conexão e tente novamente.'
+      );
+    } finally {
+      setLocationSearching(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
       <div className="fixed top-4 right-4 z-50">
@@ -520,6 +580,48 @@ const ProfessionalHomePage = () => {
             <p className="max-w-2xl text-sm text-slate-600">Veja novas oportunidades de propostas e acompanhe seu desempenho.</p>
           </div>
         </header>
+
+        <section className="mb-8 rounded-[32px] bg-white p-5 shadow-sm ring-1 ring-slate-200 sm:p-6">
+          <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
+            Localização
+          </p>
+          <form onSubmit={handleLocationSearch} className="mt-3 space-y-3">
+            <p className="text-sm text-slate-600">
+              Informe seu CEP ou bairro para encontrar profissionais próximos:
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <input
+                type="text"
+                inputMode="text"
+                autoComplete="postal-code"
+                placeholder="CEP ou bairro"
+                value={locationInput}
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setLocationInput(
+                    /^[\d\s.-]*$/.test(value) && onlyNumbers(value).length > 0
+                      ? applyCepMask(value)
+                      : value
+                  );
+                  setLocationError('');
+                }}
+                className="w-full min-w-0 flex-1 rounded-3xl border border-slate-200 bg-[var(--color-bg-light)] px-4 py-3 text-sm text-slate-800 outline-none focus:border-[var(--color-primary)] focus:ring-2 focus:ring-[var(--color-primary)]/20"
+              />
+              <button
+                type="submit"
+                disabled={locationSearching || locationInput.trim().length < 3}
+                className="shrink-0 rounded-full bg-[var(--color-primary)] px-5 py-3 text-sm font-semibold text-[var(--color-navy)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {locationSearching ? 'Buscando…' : 'Buscar'}
+              </button>
+            </div>
+            {locationError ? (
+              <p role="alert" className="text-xs text-rose-600">
+                {locationError}
+              </p>
+            ) : null}
+          </form>
+        </section>
 
         <div className="grid gap-6 lg:grid-cols-[1.4fr_0.8fr]">
           <section className="space-y-6">

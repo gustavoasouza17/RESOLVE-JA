@@ -14,6 +14,7 @@ import Button from "../../components/atoms/Button";
 import StarRating from "../../components/atoms/StarRating";
 import categories from "../../constants/categories";
 import { getProfessionals, type ProfessionalCardData } from "../../services/professionals";
+import { haversineKm, isValidLatitude, isValidLongitude } from "../../utils/geo";
 
 const normalizeCategoryValue = (value: string) =>
   value
@@ -39,9 +40,17 @@ const SearchPage = () => {
   const navigate = useNavigate();
   const { user, role } = useAuth();
   const backHome = user ? (role === "prestador" ? "/prestador/home" : "/home") : "/";
+  const latitudeParam = searchParams.get("lat");
+  const longitudeParam = searchParams.get("lng");
+  const parsedLatitude = latitudeParam === null ? NaN : Number(latitudeParam);
+  const parsedLongitude = longitudeParam === null ? NaN : Number(longitudeParam);
+  const searchLocation =
+    isValidLatitude(parsedLatitude) && isValidLongitude(parsedLongitude)
+      ? { latitude: parsedLatitude, longitude: parsedLongitude }
+      : null;
+  const locationLabel = searchLocation ? searchParams.get("location") || "" : "";
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [search, setSearch] = useState(searchParams.get("q") || "");
-  const [selectedCategory, setSelectedCategory] = useState("");
   const [sortBy, setSortBy] = useState<"distance" | "rating">("distance");
   const [professionals, setProfessionals] = useState<ProfessionalCardData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,10 +85,7 @@ const SearchPage = () => {
     };
   }, []);
 
-  useEffect(() => {
-    setSelectedCategory(resolveCategoryFromParam(categoria));
-  }, [categoria]);
-
+  const selectedCategory = resolveCategoryFromParam(categoria);
   const lowerCategory = selectedCategory.toLowerCase();
   const query = search.toLowerCase();
 
@@ -102,8 +108,36 @@ const SearchPage = () => {
     return true;
   });
 
+  if (searchLocation) {
+    filtered = filtered.filter(
+      (professional) =>
+        professional.latitude != null &&
+        professional.longitude != null &&
+        haversineKm(searchLocation, {
+          latitude: professional.latitude,
+          longitude: professional.longitude,
+        }) <= 20,
+    );
+  }
+
   if (sortBy === "distance") {
-    filtered = [...filtered].sort((a, b) => a.distanciaKm - b.distanciaKm);
+    filtered = [...filtered].sort((a, b) => {
+      const distanceA =
+        searchLocation && a.latitude != null && a.longitude != null
+          ? haversineKm(searchLocation, {
+              latitude: a.latitude,
+              longitude: a.longitude,
+            })
+          : a.distanciaKm;
+      const distanceB =
+        searchLocation && b.latitude != null && b.longitude != null
+          ? haversineKm(searchLocation, {
+              latitude: b.latitude,
+              longitude: b.longitude,
+            })
+          : b.distanciaKm;
+      return distanceA - distanceB;
+    });
   } else {
     filtered = [...filtered].sort(
       (a, b) => b.avaliacaoMedia - a.avaliacaoMedia,
@@ -112,18 +146,18 @@ const SearchPage = () => {
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    const nextParams = new URLSearchParams(searchParams);
     if (search.trim()) {
-      setSearchParams({ q: search.trim() });
+      nextParams.set("q", search.trim());
     } else {
-      setSearchParams({});
+      nextParams.delete("q");
     }
+    setSearchParams(nextParams);
   };
 
   const handleCategoryClick = (cat: string) => {
     const nextCategory =
       selectedCategory.toLowerCase() === cat.toLowerCase() ? "" : cat;
-
-    setSelectedCategory(nextCategory);
 
     if (nextCategory) {
       navigate(`/buscar/${encodeURIComponent(nextCategory)}`);
@@ -158,14 +192,20 @@ const SearchPage = () => {
       nome: p.nome,
       categoria: p.categorias[0] ?? "Profissional",
       nota: p.avaliacaoMedia,
-      distanciaKm: p.distanciaKm,
+      distanciaKm:
+        searchLocation && p.latitude != null && p.longitude != null
+          ? haversineKm(searchLocation, {
+              latitude: p.latitude,
+              longitude: p.longitude,
+            })
+          : p.distanciaKm,
       latitude: p.latitude,
       longitude: p.longitude,
     }));
 
   return (
     <div className="min-h-screen bg-[var(--color-bg-light)] text-[var(--color-navy)] pb-28">
-      <BottomNav variant="client" />
+      <BottomNav variant={role === "prestador" ? "professional" : "client"} />
       <div className="mx-auto max-w-6xl px-5 py-8 sm:px-6 lg:px-8">
         <div className="space-y-6">
           <div className="flex flex-wrap items-center justify-between gap-3">
@@ -179,9 +219,13 @@ const SearchPage = () => {
                   : "Encontre o profissional ideal"}
               </h1>
               <p className="mt-2 text-sm text-slate-600">
-                {filtered.length === 0
-                  ? "Nenhum profissional encontrado para essa busca."
-                  : `${filtered.length} ${filtered.length === 1 ? "profissional encontrado" : "profissionais encontrados"} perto de você.`}
+                {locationLabel
+                  ? filtered.length === 0
+                    ? `Nenhum profissional encontrado em um raio de 20 km de ${locationLabel}.`
+                    : `${filtered.length} ${filtered.length === 1 ? "profissional encontrado" : "profissionais encontrados"} em um raio de 20 km de ${locationLabel}.`
+                  : filtered.length === 0
+                    ? "Nenhum profissional encontrado para essa busca."
+                    : `${filtered.length} ${filtered.length === 1 ? "profissional encontrado" : "profissionais encontrados"} perto de você.`}
               </p>
             </div>
             <Button
@@ -308,8 +352,7 @@ const SearchPage = () => {
                 type="button"
                 onClick={() => {
                   setSearch("");
-                  setSelectedCategory("");
-                  setSearchParams({});
+                  navigate("/buscar");
                 }}
                 className="mt-6 rounded-2xl bg-[var(--color-primary)] px-6 py-3 text-sm font-bold text-[var(--color-navy)] transition hover:brightness-95"
               >
@@ -381,7 +424,16 @@ const SearchPage = () => {
                         <div className="rounded-3xl bg-[var(--color-bg-light)] p-4">
                           <p className="text-sm text-slate-500">Distância</p>
                           <p className="mt-2 text-xl font-semibold text-[var(--color-navy)]">
-                            {professional.distanciaKm.toFixed(1)} km
+                            {(searchLocation &&
+                            professional.latitude != null &&
+                            professional.longitude != null
+                              ? haversineKm(searchLocation, {
+                                  latitude: professional.latitude,
+                                  longitude: professional.longitude,
+                                })
+                              : professional.distanciaKm
+                            ).toFixed(1)}{" "}
+                            km
                           </p>
                         </div>
                       </div>
@@ -393,7 +445,9 @@ const SearchPage = () => {
           ) : (
             /* Results — map view */
             <MapView
-              clientLocation={null}
+              clientLocation={
+                searchLocation ? { ...searchLocation, accuracy: null } : null
+              }
               professionals={mapProfessionals}
               onSelectProfessional={handleSelectProfessional}
               visible={viewMode === "map"}
