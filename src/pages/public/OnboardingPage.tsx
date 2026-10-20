@@ -106,11 +106,20 @@ const OnboardingPage = () => {
     setCepSearching(true);
 
     try {
-      // Mesma função CEP → coordenadas usada no fluxo de perfil
-      const resolved = await withTimeout(
-        resolveCepLocation(numbers),
-        LOOKUP_TIMEOUT_MS
-      );
+      let resolved: Awaited<ReturnType<typeof resolveCepLocation>>;
+      try {
+        // Mesma função CEP → coordenadas usada no fluxo de perfil
+        resolved = await withTimeout(
+          resolveCepLocation(numbers),
+          LOOKUP_TIMEOUT_MS
+        );
+      } catch (error) {
+        console.error('Erro ao localizar CEP:', error);
+        setCepError(
+          'Não foi possível localizar este CEP. Verifique sua conexão e tente novamente.'
+        );
+        return;
+      }
 
       if (!resolved) {
         setCepError('CEP não encontrado. Verifique e tente novamente.');
@@ -130,38 +139,40 @@ const OnboardingPage = () => {
       });
       setHasSearched(true);
 
-      // Profissionais que atendem no bairro do CEP (mesma regra da lista)
-      const data = await withTimeout(getProfessionals(), LOOKUP_TIMEOUT_MS);
-      const targetBairro = resolved.address.bairro.toLowerCase();
+      try {
+        // Profissionais que atendem no bairro do CEP (mesma regra da lista)
+        const data = await withTimeout(getProfessionals(), LOOKUP_TIMEOUT_MS);
+        const targetBairro = resolved.address.bairro.toLowerCase();
 
-      const filtered: LocatedProfessional[] = data
-        .filter((prof) =>
-          (prof.bairrosAtendimento ?? []).some((bairro) =>
-            bairro.toLowerCase().includes(targetBairro)
+        const filtered: LocatedProfessional[] = data
+          .filter((prof) =>
+            (prof.bairrosAtendimento ?? []).some((bairro) =>
+              bairro.toLowerCase().includes(targetBairro)
+            )
           )
-        )
-        .map((prof) => ({
-          ...prof,
-          distance:
-            prof.latitude != null && prof.longitude != null
-              ? haversineKm(resolved.point, {
-                  latitude: prof.latitude,
-                  longitude: prof.longitude,
-                })
-              : null,
-        }))
-        .sort(
-          (a, b) =>
-            (a.distance ?? Number.POSITIVE_INFINITY) -
-            (b.distance ?? Number.POSITIVE_INFINITY)
-        );
+          .map((prof) => ({
+            ...prof,
+            distance:
+              prof.latitude != null && prof.longitude != null
+                ? haversineKm(resolved.point, {
+                    latitude: prof.latitude,
+                    longitude: prof.longitude,
+                  })
+                : null,
+          }))
+          .sort(
+            (a, b) =>
+              (a.distance ?? Number.POSITIVE_INFINITY) -
+              (b.distance ?? Number.POSITIVE_INFINITY)
+          );
 
-      setCepResults(filtered);
-    } catch (error) {
-      console.error('Erro ao buscar CEP:', error);
-      setCepError(
-        'Não foi possível buscar a localização. Verifique sua conexão e tente novamente.'
-      );
+        setCepResults(filtered);
+      } catch (error) {
+        console.error('Erro ao carregar profissionais para o CEP:', error);
+        setCepError(
+          'Localização encontrada, mas não foi possível carregar os profissionais. Verifique sua conexão e tente novamente.'
+        );
+      }
     } finally {
       // Sempre encerra o loading — sucesso, erro ou resultado vazio
       setCepSearching(false);

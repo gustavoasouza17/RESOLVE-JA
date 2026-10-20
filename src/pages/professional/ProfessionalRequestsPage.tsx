@@ -6,6 +6,7 @@ import BottomNav from '../../components/organisms/BottomNav';
 import type { MockProposal } from '../../constants/mockProposals';
 import { getProposalsForPrestador } from '../../services/proposals';
 import { deleteProposalById } from '../../services/services';
+import { getReviewedProposalIds } from '../../services/reviews';
 
 type ProposalBadgeVariant = 'success' | 'default' | 'danger';
 
@@ -26,24 +27,43 @@ const ProfessionalRequestsPage = () => {
   const [filter, setFilter] = useState<FilterType>('todas');
   const [firestoreProposals, setFirestoreProposals] = useState<MockProposal[]>([]);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [reviewedProposalIds, setReviewedProposalIds] = useState<Set<string>>(
+    () => new Set(),
+  );
+  const [error, setError] = useState('');
 
   // Busca propostas reais do Firestore ao montar
   useEffect(() => {
     const authUser = getAuthUser();
     if (!authUser?.uid) return;
-    getProposalsForPrestador(authUser.uid)
-      .then((data) => setFirestoreProposals(data))
-      .catch(console.warn);
+    Promise.all([
+      getProposalsForPrestador(authUser.uid),
+      getReviewedProposalIds(authUser.uid),
+    ])
+      .then(([data, reviewedIds]) => {
+        setFirestoreProposals(data);
+        setReviewedProposalIds(reviewedIds);
+      })
+      .catch((loadError: unknown) => {
+        console.error('Erro ao carregar solicitações do prestador:', loadError);
+        setError('Não foi possível carregar suas solicitações. Tente novamente.');
+      });
   }, []);
 
-  const handleDeleteRejectedProposal = async (proposalId: string) => {
+  const handleDeleteProposal = async (proposalId: string) => {
+    if (!window.confirm('Tem certeza de que deseja excluir esta solicitação?')) {
+      return;
+    }
+
     setDeletingId(proposalId);
+    setError('');
 
     try {
       await deleteProposalById(proposalId);
       setFirestoreProposals((current) => current.filter((proposal) => proposal.id !== proposalId));
-    } catch (error) {
-      console.error('Erro ao excluir proposta recusada:', error);
+    } catch (deleteError) {
+      console.error('Erro ao excluir solicitação:', deleteError);
+      setError('Não foi possível excluir esta solicitação. Tente novamente.');
     } finally {
       setDeletingId(null);
     }
@@ -174,6 +194,11 @@ const ProfessionalRequestsPage = () => {
 
         {/* Proposals List */}
         <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
+          {error && (
+            <p role="alert" className="mb-5 rounded-2xl bg-red-50 p-4 text-sm text-red-700 ring-1 ring-red-200">
+              {error}
+            </p>
+          )}
           <div className="flex items-center justify-between gap-4 mb-6">
             <div>
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">
@@ -228,15 +253,30 @@ const ProfessionalRequestsPage = () => {
                             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                             </svg>
-                            Avaliar cliente
+                            {reviewedProposalIds.has(proposal.id) ? 'Ver avaliação' : 'Avaliar cliente'}
                           </Link>
+                        )}
+
+                        {proposal.status === 'concluido' && reviewedProposalIds.has(proposal.id) && (
+                          <button
+                            type="button"
+                            aria-label={`Excluir solicitação concluída ${proposal.id}`}
+                            onClick={() => handleDeleteProposal(proposal.id)}
+                            disabled={deletingId === proposal.id}
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
+                            title="Excluir solicitação concluída"
+                          >
+                            <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4 fill-current">
+                              <path d="M9 3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1h2a1 1 0 1 1 0 2H7a1 1 0 0 1 0-2h2Zm-2 5h10l-.8 10.4A2 2 0 0 1 14.2 20H9.8a2 2 0 0 1-1.99-1.6L7 8Zm3 2a1 1 0 0 0-1 1v6a1 1 0 1 0 2 0v-6a1 1 0 0 0-1-1Zm4 0a1 1 0 0 0-1 1v6a1 1 0 1 0 2 0v-6a1 1 0 0 0-1-1Z" />
+                            </svg>
+                          </button>
                         )}
 
                         {proposal.status === 'recusada' && (
                           <button
                             type="button"
                             aria-label={`Excluir proposta recusada ${proposal.id}`}
-                            onClick={() => handleDeleteRejectedProposal(proposal.id)}
+                            onClick={() => handleDeleteProposal(proposal.id)}
                             disabled={deletingId === proposal.id}
                             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 bg-white text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-60"
                             title="Excluir proposta recusada"

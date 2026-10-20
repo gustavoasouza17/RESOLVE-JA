@@ -127,46 +127,26 @@ function mapProfessional(
 /**
  * Busca os profissionais ativos no Firestore.
  *
- * 1. Consulta a coleção `users` filtrando `perfil == "prestador"` e `status == "ativo"`.
- * 2. Para cada usuário encontrado, carrega o documento correspondente da coleção
- *    `professionals` (schema salvo no cadastro do prestador) e mescla os dados,
- *    aplicando fallbacks para campos ausentes.
+ * Lê somente a coleção pública `professionals`; a coleção `users` contém dados
+ * privados e não pode ser consultada pela página pública.
  *
  * @returns Lista de profissionais ativos normalizada para os cards da HomePage.
  */
 export async function getProfessionals(): Promise<ProfessionalCardData[]> {
-  // Obs.: caso o Firestore retorne erro de índice composto, criar o índice
-  // composto (perfil + status) na coleção `users` no Firebase Console.
-  const usersRef = collection(db, 'users');
+  const professionalsRef = collection(db, 'professionals');
   const q = query(
-    usersRef,
-    where('perfil', '==', 'prestador'),
+    professionalsRef,
     where('status', '==', 'ativo'),
   );
-
   const snapshot = await getDocs(q);
 
-  const professionals: ProfessionalCardData[] = [];
-
-  for (const userSnap of snapshot.docs) {
-    const uid = userSnap.id;
-    const userData = userSnap.data() as Record<string, unknown>;
-
-    let professionalData: Record<string, unknown> = {};
-    try {
-      const profRef = doc(db, 'professionals', uid);
-      const profSnap = await getDoc(profRef);
-      if (profSnap.exists()) {
-        professionalData = profSnap.data() as Record<string, unknown>;
-      }
-    } catch {
-      // Sem permissão ou erro de rede — segue apenas com os dados da coleção `users`
-    }
-
-    professionals.push(mapProfessional(uid, userData, professionalData));
-  }
-
-  return professionals;
+  return snapshot.docs.map((professionalSnap) =>
+    mapProfessional(
+      professionalSnap.id,
+      {},
+      professionalSnap.data() as Record<string, unknown>,
+    )
+  );
 }
 
 /**
