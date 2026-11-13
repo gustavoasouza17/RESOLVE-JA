@@ -16,11 +16,16 @@ import ProfessionalRequestsPage from '../pages/professional/ProfessionalRequests
 import ProposalPage from '../pages/professional/ProposalPage';
 import ProfessionalReviewPage from '../pages/professional/ProfessionalReviewPage';
 import AdminDashboardPage from '../pages/admin/AdminDashboardPage';
+import AdminUnauthorizedPage from '../pages/admin/AdminUnauthorizedPage';
 import ProtectedRoute from './ProtectedRoute';
 
 const C = (el: any) => <ProtectedRoute allowedRoles={['cliente']}>{el}</ProtectedRoute>;
 const P = (el: any) => <ProtectedRoute allowedRoles={['prestador']}>{el}</ProtectedRoute>;
-const A = (el: any) => <ProtectedRoute allowedRoles={['admin']}>{el}</ProtectedRoute>;
+const A = (el: any) => (
+  <ProtectedRoute allowedRoles={['admin']} unauthorizedFallback={<AdminUnauthorizedPage />}>
+    {el}
+  </ProtectedRoute>
+);
 
 const AppRouter = () => {
   return (
@@ -45,6 +50,7 @@ const AppRouter = () => {
         <Route path="/prestador/proposta/:proposalId" element={P(<ProposalPage />)} />
         <Route path="/prestador/avaliar/:proposalId" element={P(<ProfessionalReviewPage />)} />
         <Route path="/admin" element={A(<AdminDashboardPage />)} />
+        <Route path="/admin/nao-autorizado" element={<AdminUnauthorizedPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
