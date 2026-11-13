@@ -28,9 +28,14 @@ export function formatCepForDisplay(cep: string): string {
   return applyCepMask(cep);
 }
 
+/** Timeout de segurança para requisições de rede (ms). */
+const NETWORK_TIMEOUT_MS = 10000;
+
 /**
  * Busca endereço via API ViaCEP
- * Retorna objeto com dados do endereço ou null se não encontrado
+ * Retorna objeto com dados do endereço ou null se não encontrado.
+ * Timeout de segurança de 10s (AbortController) para não travar
+ * o fluxo de busca em caso de rede lenta/hung.
  */
 export async function fetchAddressByCep(cep: string): Promise<{
   cep: string;
@@ -42,12 +47,17 @@ export async function fetchAddressByCep(cep: string): Promise<{
   const numbers = onlyNumbers(cep);
   if (numbers.length !== 8) return null;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);
+
   try {
-    const response = await fetch(`https://viacep.com.br/ws/${numbers}/json/`);
+    const response = await fetch(`https://viacep.com.br/ws/${numbers}/json/`, {
+      signal: controller.signal,
+    });
     const data = await response.json();
-    
+
     if (data.erro) return null;
-    
+
     return {
       cep: data.cep,
       logradouro: data.logradouro,
@@ -58,6 +68,8 @@ export async function fetchAddressByCep(cep: string): Promise<{
   } catch (error) {
     console.warn('Erro ao buscar CEP:', error);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -69,15 +81,18 @@ export async function fetchCoordsByCep(cep: string): Promise<{ lat: number; lng:
   const numbers = onlyNumbers(cep);
   if (numbers.length !== 8) return null;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), NETWORK_TIMEOUT_MS);
+
   try {
     const response = await fetch(
       `https://nominatim.openstreetmap.org/search?format=json&q=${numbers},%20Brasil&limit=1`,
-      { headers: { 'User-Agent': 'ResolveJa/1.0' } }
+      { signal: controller.signal }
     );
     const data = await response.json();
-    
+
     if (data.length === 0) return null;
-    
+
     return {
       lat: parseFloat(data[0].lat),
       lng: parseFloat(data[0].lon),
@@ -85,5 +100,7 @@ export async function fetchCoordsByCep(cep: string): Promise<{ lat: number; lng:
   } catch (error) {
     console.warn('Erro ao buscar coordenadas do CEP:', error);
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }

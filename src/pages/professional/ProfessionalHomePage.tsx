@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged } from 'firebase/auth';
 import BottomNav from '../../components/organisms/BottomNav';
 import NotificationBell from '../../components/molecules/NotificationBell';
@@ -373,8 +373,11 @@ const WorkPostCard = ({ post }: { post: WorkPost }) => (
 // ─── Page ─────────────────────────────────────────────────────────────────────
 const ProfessionalHomePage = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const userName = getUserName();
-  const [modalOpen, setModalOpen] = useState(false);
+  const [modalOpen, setModalOpen] = useState(
+    () => Boolean((location.state as { openNewPost?: boolean } | null)?.openNewPost),
+  );
   const [posts, setPosts] = useState<WorkPost[]>([]);
   const [successToast, setSuccessToast] = useState('');
 
@@ -384,6 +387,13 @@ const ProfessionalHomePage = () => {
   const [category, setCategory] = useState('Serviço');
   const [uid, setUid] = useState<string | null>(null);
   const [claimingId, setClaimingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const state = location.state as { openNewPost?: boolean } | null;
+    if (!state?.openNewPost) return;
+
+    navigate(location.pathname, { replace: true, state: null });
+  }, [location.key, location.pathname, location.state, navigate]);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {

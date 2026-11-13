@@ -162,6 +162,19 @@ export async function getReviewByProposalAndAvaliador(
   }
 }
 
+export async function getReviewedProposalIds(avaliadorId: string): Promise<Set<string>> {
+  const q = query(
+    collection(db, 'reviews'),
+    where('avaliadorId', '==', avaliadorId),
+  );
+  const snapshot = await getDocs(q);
+  return new Set(
+    snapshot.docs
+      .map((reviewSnap) => normalizeString(reviewSnap.data().proposalId))
+      .filter(Boolean),
+  );
+}
+
 /**
  * Busca todas as avaliações recebidas por um usuário (avaliadoId),
  * com nome e foto do avaliador resolvidos.

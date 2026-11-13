@@ -13,6 +13,7 @@ import {
   type RecommendedProfessional,
 } from '../../services/services';
 import { updateProposalStatus } from '../../services/proposals';
+import { getReviewedProposalIds } from '../../services/reviews';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -86,6 +87,9 @@ const ClientRequestsPage = () => {
   const [error, setError] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [reviewedProposalIds, setReviewedProposalIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -103,14 +107,16 @@ const ClientRequestsPage = () => {
       setError('');
 
       try {
-        const [history, recs] = await Promise.all([
+        const [history, recs, reviewedIds] = await Promise.all([
           getServiceHistory(user.uid),
           getRecommendedProfessionals(user.uid),
+          getReviewedProposalIds(user.uid),
         ]);
 
         if (!cancelled) {
           setHistoryItems(history);
           setRecommended(recs);
+          setReviewedProposalIds(reviewedIds);
         }
       } catch (err) {
         console.error('Erro ao carregar solicitações do Firestore:', err);
@@ -131,6 +137,10 @@ const ClientRequestsPage = () => {
   }, []);
 
   const handleDeleteProposal = async (proposalId: string) => {
+    if (!window.confirm('Tem certeza de que deseja excluir esta solicitação?')) {
+      return;
+    }
+
     setDeletingId(proposalId);
     setError('');
 
@@ -262,7 +272,7 @@ const ClientRequestsPage = () => {
                         </div>
                       </div>
                       {item.status === 'Concluída' && (
-                        <div className="mt-4 flex justify-end">
+                        <div className="mt-4 flex flex-wrap justify-end gap-3">
                           <Link
                             to={`/avaliar/${item.id}`}
                             className="inline-flex items-center gap-2 rounded-2xl bg-[var(--color-primary)] px-5 py-2.5 text-sm font-bold text-[var(--color-navy)] shadow-md shadow-[var(--color-primary)]/30 transition hover:brightness-95"
@@ -270,7 +280,7 @@ const ClientRequestsPage = () => {
                             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                               <path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" />
                             </svg>
-                            Avaliar profissional
+                            {reviewedProposalIds.has(item.id) ? 'Ver avaliação' : 'Avaliar profissional'}
                           </Link>
                         </div>
                       )}

@@ -1,70 +1,32 @@
 import { useMemo, useState } from 'react';
 import Badge from '../../components/atoms/Badge';
 import Button from '../../components/atoms/Button';
-import {
-  CategoryDemandChart,
-  ProposalStatusDonut,
-  RevenueServicesChart,
-} from '../../components/admin/AdminCharts';
-import initialCategories, { type CategoryItem } from '../../constants/categories';
-import {
-  initialAdminUsers,
-  initialAlertPoints,
-  initialOccurrences,
-  type AdminUser,
-  type AlertPoint,
-  type AlertSeverity,
-  type OccurrenceRecord,
-  type OccurrenceSeverity,
-  type OccurrenceStatus,
-  type OccurrenceType,
-  type TimeRange,
-} from '../../constants/mockAdminData';
+import Badge from '../../components/atoms/Badge';
+import categories from '../../constants/categories';
+import mockProfessionals from '../../constants/mockProfessionals';
+import mockProposals from '../../constants/mockProposals';
 
-const alertSeverityConfig: Record<
-  AlertSeverity,
-  { label: string; badgeVariant: 'danger' | 'warning' | 'default'; borderClass: string; bgClass: string }
-> = {
-  critico: {
-    label: 'Crítico',
-    badgeVariant: 'danger',
-    borderClass: 'border-rose-200',
-    bgClass: 'bg-rose-50/70',
-  },
-  atencao: {
-    label: 'Atenção',
-    badgeVariant: 'warning',
-    borderClass: 'border-amber-200',
-    bgClass: 'bg-amber-50/70',
-  },
-  info: {
-    label: 'Monitorar',
-    badgeVariant: 'default',
-    borderClass: 'border-slate-200',
-    bgClass: 'bg-slate-50',
-  },
-};
-
-const occurrenceSeverityBadge: Record<OccurrenceSeverity, { label: string; variant: 'danger' | 'warning' | 'default' }> = {
-  alta: { label: 'Alta', variant: 'danger' },
-  media: { label: 'Média', variant: 'warning' },
-  baixa: { label: 'Baixa', variant: 'default' },
-};
-
-const occurrenceStatusBadge: Record<OccurrenceStatus, { label: string; variant: 'danger' | 'warning' | 'success' }> = {
-  aberto: { label: 'Aberto', variant: 'danger' },
-  em_analise: { label: 'Em análise', variant: 'warning' },
-  resolvido: { label: 'Resolvido', variant: 'success' },
-};
-
-const occurrenceTypes: OccurrenceType[] = [
-  'Serviço não entregue',
-  'Atraso recorrente',
-  'Divergência de valor',
-  'Perfil suspeito',
-  'Qualidade abaixo do padrão',
-  'Comportamento inadequado',
+const summaryCards = [
+  { label: 'Usuários totais', value: '1.248' },
+  { label: 'Profissionais ativos', value: '489' },
+  { label: 'Serviços realizados', value: '12.530' },
+  { label: 'Receita estimada', value: 'R$ 1.280.000' },
 ];
+
+const users = mockProfessionals.slice(0, 3).map((professional) => ({
+  id: professional.uid,
+  name: professional.nome,
+  profile: 'Prestador',
+  status: professional.status === 'ativo' ? 'Ativo' : 'Suspenso',
+}));
+
+const reports = mockProposals.slice(0, 2).map((proposal, index) => ({
+  id: `r${index + 1}`,
+  reporter: proposal.clienteId,
+  reported: proposal.prestadorId,
+  reason: index === 0 ? 'Serviço não entregue' : 'Perfil falso',
+  date: index === 0 ? '01 jun 2026' : '28 mai 2026',
+}));
 
 const AdminDashboardPage = () => {
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
@@ -373,12 +335,8 @@ const AdminDashboardPage = () => {
         <section className="mb-8 rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-8">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-rose-600">
-                Monitoramento preventivo
-              </p>
-              <h2 className="mt-1 text-xl font-bold text-[var(--color-navy)]">
-                Pontos de alerta e atenção
-              </h2>
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Painel administrativo</p>
+              <h1 className="mt-3 text-3xl font-bold tracking-tight">Visão geral do sistema</h1>
             </div>
             <label className="inline-flex cursor-pointer items-center gap-2 text-xs font-semibold text-slate-600">
               <input
@@ -694,64 +652,24 @@ const AdminDashboardPage = () => {
                   className="w-full rounded-2xl border border-slate-200 bg-[var(--color-bg-light)] px-4 py-2.5 text-sm text-slate-700 outline-none transition focus:border-[var(--color-navy)]"
                 />
               </div>
-
-              <div className="mt-5 overflow-x-auto">
+              <div className="mt-6 overflow-x-auto">
                 <table className="min-w-full text-left text-sm">
                   <thead>
-                    <tr className="border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
-                      <th className="px-3 py-3">Usuário</th>
-                      <th className="px-3 py-3">Perfil</th>
-                      <th className="px-3 py-3">Área</th>
-                      <th className="px-3 py-3">Nota</th>
-                      <th className="px-3 py-3">Status</th>
-                      <th className="px-3 py-3 text-right">Ações</th>
+                    <tr className="border-b border-slate-200 text-slate-500">
+                      <th className="px-4 py-3">Nome</th>
+                      <th className="px-4 py-3">Perfil</th>
+                      <th className="px-4 py-3">Status</th>
+                      <th className="px-4 py-3">Ação</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {filteredUsers.map((user) => (
-                      <tr key={user.id} className="hover:bg-slate-50/80">
-                        <td className="px-3 py-3.5">
-                          <p className="font-semibold text-[var(--color-navy)]">{user.name}</p>
-                          <p className="text-xs text-slate-500">{user.email}</p>
-                        </td>
-                        <td className="px-3 py-3.5 text-slate-600">{user.profile}</td>
-                        <td className="px-3 py-3.5 text-slate-600">{user.categoryOrNeighborhood}</td>
-                        <td className="px-3 py-3.5 font-semibold text-slate-700">
-                          {user.rating.toFixed(1)} ★
-                        </td>
-                        <td className="px-3 py-3.5">
-                          <Badge
-                            variant={
-                              user.status === 'Ativo'
-                                ? 'success'
-                                : user.status === 'Suspenso'
-                                  ? 'danger'
-                                  : 'warning'
-                            }
-                            label={user.status}
-                          />
-                        </td>
-                        <td className="px-3 py-3.5">
-                          <div className="flex justify-end gap-2">
-                            <button
-                              type="button"
-                              onClick={() => setSelectedUser(user)}
-                              className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs font-semibold text-[var(--color-navy)] transition hover:bg-slate-200"
-                            >
-                              Detalhes
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => toggleUserStatus(user.id)}
-                              className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                                user.status === 'Suspenso'
-                                  ? 'bg-emerald-100 text-emerald-800 hover:bg-emerald-200'
-                                  : 'bg-rose-50 text-rose-700 hover:bg-rose-100'
-                              }`}
-                            >
-                              {user.status === 'Suspenso' ? 'Reativar' : 'Suspender'}
-                            </button>
-                          </div>
+                    {users.map((user) => (
+                      <tr key={user.id}>
+                        <td className="px-4 py-4 text-slate-700">{user.name}</td>
+                        <td className="px-4 py-4 text-slate-600">{user.profile}</td>
+                        <td className="px-4 py-4 text-slate-600">{user.status}</td>
+                        <td className="px-4 py-4">
+                          <Button variant="secondary">Ver perfil</Button>
                         </td>
                       </tr>
                     ))}
@@ -761,79 +679,40 @@ const AdminDashboardPage = () => {
             </div>
           </section>
 
-          {/* Sidebar */}
-          <aside className="space-y-6">
-            {/* Gerenciamento de categorias */}
-            <div className="rounded-[32px] bg-white p-6 shadow-sm ring-1 ring-slate-200 sm:p-7">
-              <div className="flex items-center justify-between gap-2">
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                    Catálogo
-                  </p>
-                  <h2 className="mt-1 text-lg font-bold text-[var(--color-navy)]">
-                    Categorias de serviço
-                  </h2>
-                </div>
-                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                  {categoryList.filter((c) => c.ativa).length}/{categoryList.length} ativas
-                </span>
+            <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
+              <div className="flex items-center justify-between gap-4">
+                <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Denúncias pendentes</p>
+                <Badge variant="default" label={`${reports.length}`} />
               </div>
-
-              <div className="mt-5 space-y-2.5">
-                {categoryList.map((category) => (
-                  <div
-                    key={category.id}
-                    className="flex items-center justify-between rounded-2xl bg-[var(--color-bg-light)] px-4 py-3"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span
-                        className={`h-2.5 w-2.5 rounded-full ${
-                          category.ativa ? 'bg-emerald-500' : 'bg-slate-300'
-                        }`}
-                      />
-                      <span
-                        className={`text-sm font-medium ${
-                          category.ativa ? 'text-[var(--color-navy)]' : 'text-slate-400 line-through'
-                        }`}
-                      >
-                        {category.nome}
-                      </span>
+              <div className="mt-6 space-y-4">
+                {reports.map((report) => (
+                  <div key={report.id} className="rounded-3xl bg-[var(--color-bg-light)] p-5">
+                    <div className="flex items-center justify-between gap-4">
+                      <div>
+                        <p className="font-semibold text-[var(--color-navy)]">{report.reason}</p>
+                        <p className="text-sm text-slate-600">Denunciante: {report.reporter}</p>
+                      </div>
+                      <span className="text-sm text-slate-500">{report.date}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => toggleCategoryActive(category.id)}
-                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
-                        category.ativa
-                          ? 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-100'
-                          : 'bg-[var(--color-navy)] text-white hover:opacity-90'
-                      }`}
-                    >
-                      {category.ativa ? 'Desativar' : 'Ativar'}
-                    </button>
+                    <p className="mt-3 text-sm text-slate-700">Denunciado: {report.reported}</p>
+                    <div className="mt-4 flex gap-3">
+                      <Button variant="primary">Ver perfil</Button>
+                      <Button variant="secondary">Marcar como lido</Button>
+                    </div>
                   </div>
                 ))}
               </div>
+            </div>
+          </section>
 
-              {showCategoryForm ? (
-                <form onSubmit={handleAddCategory} className="mt-4 space-y-2.5">
-                  <input
-                    type="text"
-                    value={newCategoryName}
-                    onChange={(e) => setNewCategoryName(e.target.value)}
-                    placeholder="Nome da nova categoria..."
-                    className="w-full rounded-2xl border border-slate-200 bg-[var(--color-bg-light)] px-4 py-2.5 text-sm outline-none focus:border-[var(--color-navy)]"
-                  />
-                  <div className="flex gap-2">
-                    <Button type="submit" variant="primary" fullWidth>
-                      Salvar
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="secondary"
-                      onClick={() => setShowCategoryForm(false)}
-                    >
-                      Cancelar
-                    </Button>
+          <aside className="space-y-6">
+            <div className="rounded-[32px] bg-white p-8 shadow-lg shadow-slate-200/40 ring-1 ring-slate-200">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-slate-500">Gerenciamento de categorias</p>
+              <div className="mt-6 space-y-3">
+                {categories.slice(0, 3).map((category) => (
+                  <div key={category.id} className="flex items-center justify-between rounded-3xl bg-[var(--color-bg-light)] px-4 py-3">
+                    <span className="text-sm font-medium text-[var(--color-navy)]">{category.nome}</span>
+                    <Button variant="secondary">Desativar</Button>
                   </div>
                 </form>
               ) : (

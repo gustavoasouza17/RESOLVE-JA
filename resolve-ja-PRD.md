@@ -279,11 +279,13 @@ resolve-ja/
 | Barra de busca | Input (search) | Navega para `/buscar/:categoria` ao submeter |
 | Toggle Mapa / Lista | SegmentedControl | Mesmo da S01; troca visualização |
 | Grid de categorias | CategoryCard list | Ícones por categoria; ao clicar navega para `/buscar/:categoria` |
-| Mapa com pins de profissionais | MapView | Exibe prestadores próximos via Geolocation API: usar Open Street Map; visível quando "Ver Mapa" selecionado |
-| Lista de profissionais próximos | ProfessionalCard list | Visível quando "Ver Lista" selecionado |
+| Mapa com pins de profissionais | MapView | Exibe prestadores próximos via Geolocation API: usar Open Street Map; visível quando "Ver Mapa" selecionado. Marcador do cliente com círculo de precisão (accuracy); `fitBounds` enquadra cliente + prestadores; pins com popup (nome, categoria, nota, distância e link "Ver perfil completo"); botão de relocalizar chama `relocate()` |
+| Lista de profissionais próximos | ProfessionalCard list | Visível quando "Ver Lista" selecionado; distância real calculada por Haversine entre a posição do cliente e `latitude`/`longitude` do prestador, exibida como "X.X km", ordenada do mais próximo, com badge "Mais perto" no primeiro |
 | Botão de relocalizar | IconButton | Recentra o mapa na posição atual |
 
 - Edge case: permissão de localização negada → exibir campo para digitar CEP ou bairro
+- Edge case: precisão baixa (accuracy > 1000 m, típico de localização por IP) → avisar o usuário e oferecer campo de CEP/bairro
+- Edge case: prestador sem `latitude`/`longitude` no Firestore → fica fora do mapa (apenas na lista); coordenadas são geradas via ViaCEP + Nominatim ao cadastrar/editar o perfil, somente quando o endereço muda (Nominatim: máx. 1 req/s, com identificação da aplicação)
 - Edge case: nenhum profissional na área → "Nenhum profissional encontrado nesta área ainda."
 - Edge case: sem conexão → resultados em cache com banner "Resultados offline"
 
@@ -509,6 +511,10 @@ resolve-ja/
   },
   "totalServicos": 203,
   "distanciaKm": 1.2,
+  "latitude": -23.5489,
+  "longitude": -46.6301,
+  "enderecoGeocodado": "cep:02410200",
+  "cep": "02410200",
   "avaliacaoMedia": 4.9,
   "totalAvaliacoes": 127,
   "valorDiaria": "R$ 240–380",
@@ -605,9 +611,9 @@ resolve-ja/
 
 ### Busca e Match
 11. O cliente pode buscar profissionais por palavra-chave e categoria
-12. O sistema deve exibir profissionais próximos no mapa usando a Geolocation API do browser
-13. O cliente pode informar CEP ou bairro manualmente caso recuse permissão de GPS
-14. O sistema deve exibir distância e quantidade de serviços realizados nos cards de resultado
+12. O sistema deve exibir profissionais próximos no mapa usando a Geolocation API do browser (`enableHighAccuracy`, `timeout` 10s, `maximumAge` baixo), via hook `useLocation` que expõe latitude, longitude, accuracy, loading, erro e `relocate()`
+13. O cliente pode informar CEP ou bairro manualmente caso recuse permissão de GPS ou quando a precisão for ruim (accuracy > 1000 m); o fallback geocodifica CEP (ViaCEP) ou bairro (Nominatim) e centraliza o mapa no local
+14. O sistema deve exibir distância real (Haversine, "X.X km") e quantidade de serviços realizados nos cards de resultado, ordenando do mais próximo e marcando o "Mais perto"
 
 ### Consulta por CEP (Landing Page)
 15. A landing page pública deve exibir um campo de CEP com máscara automática (formato 00000-000)
