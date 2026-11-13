@@ -86,11 +86,51 @@ export async function checkCpfDuplicity(cpf: string): Promise<string | null> {
   }
 }
 
+export const HARDCODED_ADMIN_STORAGE_KEY = "resolveJaHardcodedAdmin";
+export const HARDCODED_ADMIN_EMAIL = "admin@admin.com";
+export const HARDCODED_ADMIN_PASSWORD = "admin123";
+
+export const HARDCODED_ADMIN_USER = {
+  uid: "admin-local-001",
+  email: HARDCODED_ADMIN_EMAIL,
+  displayName: "Administrador (Teste)",
+};
+
+export const HARDCODED_ADMIN_PROFILE: Record<string, unknown> = {
+  uid: "admin-local-001",
+  nome: "Administrador (Teste)",
+  email: HARDCODED_ADMIN_EMAIL,
+  perfil: "admin",
+  status: "ativo",
+};
+
+function notifyHardcodedAuthChange() {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("resolveja-auth-change"));
+  }
+}
+
 /**
  * Login com e-mail e senha.
  * @returns Objeto com `user` (firebase User) e `profile` (dados do Firestore).
  */
 export async function loginWithEmail(email: string, senha: string) {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (normalizedEmail === HARDCODED_ADMIN_EMAIL) {
+    if (senha !== HARDCODED_ADMIN_PASSWORD) {
+      throw new Error("Senha incorreta para o administrador de testes.");
+    }
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(HARDCODED_ADMIN_STORAGE_KEY, "true");
+      notifyHardcodedAuthChange();
+    }
+    return {
+      user: HARDCODED_ADMIN_USER,
+      profile: HARDCODED_ADMIN_PROFILE,
+    };
+  }
+
   const credential = await signInWithEmailAndPassword(auth, email, senha);
   const user = credential.user;
 
@@ -216,9 +256,13 @@ export async function registerWithEmail(
 }
 
 /**
- * Logout — encerra a sessão do Firebase Auth.
+ * Logout — encerra a sessão do Firebase Auth e eventual sessão admin de testes.
  */
 export async function logout() {
+  if (typeof window !== "undefined") {
+    window.localStorage.removeItem(HARDCODED_ADMIN_STORAGE_KEY);
+    notifyHardcodedAuthChange();
+  }
   await signOut(auth);
 }
 

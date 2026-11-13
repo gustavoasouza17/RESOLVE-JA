@@ -101,7 +101,7 @@ const LoginPage = () => {
 
     try {
       const { user, profile } = await loginWithEmail(email.trim(), password);
-      const perfil = profile?.perfil as 'cliente' | 'prestador' | undefined;
+      const perfil = profile?.perfil as 'cliente' | 'prestador' | 'admin' | undefined;
 
       // Salva dados do usuário no localStorage
       if (profile) {
@@ -119,7 +119,9 @@ const LoginPage = () => {
         );
       }
 
-      if (perfil === 'prestador') {
+      if (perfil === 'admin') {
+        navigate('/admin');
+      } else if (perfil === 'prestador') {
         navigate('/prestador/home');
       } else {
         navigate('/home');
